@@ -1070,7 +1070,7 @@ nsfont_draw (struct glyph_string *s, int from, int to, int x, int y,
 
       if (!s->face->stipple)
         [(NS_FACE_BACKGROUND (face) != 0
-          ? ns_lookup_indexed_color (NS_FACE_BACKGROUND (face), s->f)
+          ? [NSColor colorWithUnsignedLong:NS_FACE_BACKGROUND (face)]
           : FRAME_BACKGROUND_COLOR (s->f)) set];
       else
         {
@@ -1085,12 +1085,12 @@ nsfont_draw (struct glyph_string *s, int from, int to, int x, int y,
   r.origin.y = y;
 
   col = (NS_FACE_FOREGROUND (face) != 0
-         ? ns_lookup_indexed_color (NS_FACE_FOREGROUND (face), s->f)
+         ? [NSColor colorWithUnsignedLong:NS_FACE_FOREGROUND (face)]
          : FRAME_FOREGROUND_COLOR (s->f));
 
   bgCol = (flags != NS_DUMPGLYPH_FOREGROUND ? nil
            : (NS_FACE_BACKGROUND (face) != 0
-              ? ns_lookup_indexed_color (NS_FACE_BACKGROUND (face), s->f)
+              ? [NSColor colorWithUnsignedLong:NS_FACE_BACKGROUND (face)]
               : FRAME_BACKGROUND_COLOR (s->f)));
 
   /* render under GNUstep using DPS */
