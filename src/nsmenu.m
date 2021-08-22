@@ -1034,9 +1034,7 @@ update_frame_tool_bar (struct frame *f)
       struct image *img;
       Lisp_Object image;
       Lisp_Object labelObj;
-      const char *labelText;
       Lisp_Object helpObj;
-      const char *helpText;
 
       /* Check if this is a separator.  */
       if (EQ (TOOLPROP (TOOL_BAR_ITEM_TYPE), Qt))
@@ -1062,11 +1060,9 @@ update_frame_tool_bar (struct frame *f)
           idx = -1;
         }
       labelObj = TOOLPROP (TOOL_BAR_ITEM_LABEL);
-      labelText = NILP (labelObj) ? "" : SSDATA (labelObj);
       helpObj = TOOLPROP (TOOL_BAR_ITEM_HELP);
       if (NILP (helpObj))
         helpObj = TOOLPROP (TOOL_BAR_ITEM_CAPTION);
-      helpText = NILP (helpObj) ? "" : SSDATA (helpObj);
 
       /* Ignore invalid image specifications.  */
       if (!valid_image_p (image))
@@ -1088,8 +1084,8 @@ update_frame_tool_bar (struct frame *f)
       [toolbar addDisplayItemWithImage: img->pixmap
                                    idx: k++
                                    tag: i
-                             labelText: labelText
-                              helpText: helpText
+                             labelText: [NSString stringWithLispString:labelObj]
+                              helpText: [NSString stringWithLispString:helpObj]
                                enabled: enabled_p];
 #undef TOOLPROP
     }
@@ -1193,8 +1189,8 @@ update_frame_tool_bar (struct frame *f)
 - (void) addDisplayItemWithImage: (EmacsImage *)img
                              idx: (int)idx
                              tag: (int)tag
-                       labelText: (const char *)label
-                        helpText: (const char *)help
+                       labelText: (NSString *)label
+                        helpText: (NSString *)help
                          enabled: (BOOL)enabled
 {
   NSTRACE ("[EmacsToolbar addDisplayItemWithImage: ...]");
@@ -1211,8 +1207,8 @@ update_frame_tool_bar (struct frame *f)
       item = [[[NSToolbarItem alloc] initWithItemIdentifier: identifier]
                autorelease];
       [item setImage: img];
-      [item setLabel: [NSString stringWithUTF8String: label]];
-      [item setToolTip: [NSString stringWithUTF8String: help]];
+      [item setLabel: label];
+      [item setToolTip: help];
       [item setTarget: emacsView];
       [item setAction: @selector (toolbarClicked:)];
       [identifierToItem setObject: item forKey: identifier];
