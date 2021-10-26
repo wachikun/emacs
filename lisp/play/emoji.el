@@ -42,11 +42,15 @@
 (defvar emoji--names (make-hash-table :test #'equal))
 
 ;;;###autoload
-(defun emoji-insert ()
-  "Choose and insert an emoji glyph."
-  (interactive)
+(defun emoji-insert (&optional text)
+  "Choose and insert an emoji glyph.
+If TEXT (interactively, the prefix), use a textual search instead
+of a visual interface."
+  (interactive "P")
   (emoji--init)
-  (funcall (intern "emoji-command-Emoji")))
+  (if text
+      (emoji--choose-emoji)
+    (funcall (intern "emoji-command-Emoji"))))
 
 (defvar emoji--insert-buffer)
 
@@ -393,6 +397,22 @@ We prefer the earliest unique letter."
                          for bit on alist by (lambda (l) (nthcdr 77 l))
                          collect (cons (concat (string prefix) "-group")
                                        (seq-take bit 77))))))))
+
+(defun emoji--choose-emoji ()
+  (let ((names (make-hash-table :test #'equal)))
+    (dolist (section (emoji--flatten (cons "Emoji" emoji--labels)))
+      (dolist (char section)
+        (when-let ((name (or (gethash char emoji--names)
+                             (get-char-code-property (aref char 0) 'name))))
+          (setf (gethash (downcase name) names) char))))
+    (let* ((name (completing-read "Emoji: " names nil t))
+           (glyph (gethash name names))
+           (variants (gethash glyph emoji--variants)))
+      (if (not variants)
+          (insert glyph)
+        (funcall
+         (emoji--define-transient
+          (cons "Choose Emoji" (cons glyph variants))))))))
 
 (provide 'emoji)
 
