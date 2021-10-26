@@ -38,7 +38,9 @@
   ;; Remove debugging.
   (unless (and nil emoji--labels)
     (emoji--parse-labels)
-    (emoji--parse-variants)
+    (setq emoji--variants (make-hash-table :test #'equal))
+    (emoji--parse-normal-variants)
+    (emoji--parse-zwj-variants)
     (emoji--define-transient))
   (funcall (intern "emoji-command-Emoji")))
 
@@ -79,7 +81,7 @@
     ;; Finally split up the too-long lists.
     (emoji--split-long-lists emoji--labels)))
 
-(defun emoji--parse-variants ()
+(defun emoji--parse-zwj-variants ()
   (with-temp-buffer
     (let ((table (make-hash-table :test #'equal)))
       (insert-file-contents (expand-file-name
@@ -103,11 +105,27 @@
             (setf (gethash base table)
                   (nconc (gethash base table) (list glyph))))))
       ;; Finally create the mapping from the base glyphs to derived ones.
-      (setq emoji--variants (make-hash-table :test #'equal))
       (maphash (lambda (_k v)
                  (setf (gethash (car v) emoji--variants)
                        (cdr v)))
                table))))
+
+(defun emoji--parse-normal-variants ()
+  (with-temp-buffer
+    (let ((case-fold-search t))
+      (insert-file-contents (expand-file-name
+                             "../admin/unidata/emoji-sequences.txt"
+                             data-directory))
+      (unless (re-search-forward "^# RGI_Emoji_Modifier_Sequence" nil t)
+        (error "Can't find RGI_Emoji_Modifier_Sequence"))
+      (forward-line 2)
+      (while (looking-at "\\([[:xdigit:]]+\\) +\\([[:xdigit:]]+\\)")
+        (let ((parent (string (string-to-number (match-string 1) 16)))
+              (modifier (string (string-to-number (match-string 2) 16))))
+          (setf (gethash parent emoji--variants)
+                (append (gethash parent emoji--variants)
+                        (list (concat parent modifier)))))
+        (forward-line 1)))))
 
 (defun emoji--add-characters (chars main sub)
   (let ((subs (if (member sub '( "cat-face" "monkey-face" "skin-tone"
