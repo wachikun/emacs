@@ -50,12 +50,12 @@ of a visual interface."
   (emoji--init)
   (if text
       (emoji--choose-emoji)
-    (funcall (intern "emoji-command-Emoji"))))
+    (funcall (intern "emoji--command-Emoji"))))
 
 (defvar emoji--insert-buffer)
 
 ;;;###autoload
-(defun list-emojis ()
+(defun emoji-list ()
   "List emojis and insert the one that's selected.
 The character will be inserted into the buffer that was selected
 when the command was issued."
@@ -133,7 +133,7 @@ when the command was issued."
 
 (defun emoji--init ()
   ;; Remove debugging.
-  (unless (and nil emoji--labels)
+  (unless emoji--labels
     (setq emoji--derived (make-hash-table :test #'equal))
     (emoji--parse-labels)
     (emoji--parse-normal-derived)
@@ -293,7 +293,7 @@ when the command was issued."
   (unless alist
     (setq alist (cons "Emoji" emoji--labels)))
   (let* ((mname (pop alist))
-         (name (intern (format "emoji-command-%s" mname)))
+         (name (intern (format "emoji--command-%s" mname)))
          (has-subs (consp (cadr alist)))
          (layout
           (if has-subs
