@@ -132,7 +132,6 @@ when the command was issued."
                                   nil end-func))))))
 
 (defun emoji--init ()
-  (setq transient-use-variable-pitch t)
   ;; Remove debugging.
   (unless (and nil emoji--labels)
     (setq emoji--derived (make-hash-table :test #'equal))
@@ -339,7 +338,8 @@ when the command was issued."
     (setf (symbol-function name)
           (lambda ()
             (interactive)
-            (transient-setup name)))
+            (let ((transient-use-variable-pitch t))
+              (transient-setup name))))
     (pcase-let ((`(,class ,slots ,suffixes ,docstr ,_body)
                  (transient--expand-define-args (list args))))
        (put name 'interactive-only t)
