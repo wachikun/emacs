@@ -133,6 +133,8 @@ when the command was issued."
 
 (defun emoji--init ()
   ;; Remove debugging.
+  (setq transient-use-variable-pitch t)
+  (setq transient--use-variable-pitch t)
   (unless emoji--labels
     (setq emoji--derived (make-hash-table :test #'equal))
     (emoji--parse-labels)
