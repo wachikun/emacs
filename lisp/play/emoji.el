@@ -144,7 +144,18 @@
           (nconc parent (list (setq elem (list (car subs))))))
         (pop subs)
         (setq parent elem))
-      (nconc elem chars))))
+      (nconc elem
+             (cl-loop for char in chars
+                      collect (if (and (= (length char) 1)
+                                       (eq (aref char-script-table (elt char 0))
+                                           'symbol))
+                                  ;; If itʼs not in the 'emoji script you need
+                                  ;; the VS-16. Itʼs an emoji, but it
+                                  ;; has Emoji_Presentation = No.
+                                  ;; Donʼt ask.  Add VARIATION
+                                  ;; SELECTOR-16.
+                                  (concat char (string  #xfe0f))
+                                char))))))
 
 (defun emoji--define-transient (&optional alist)
   (unless alist
@@ -169,20 +180,21 @@
                                       (number-sequence ?0 ?9)
                                       (number-sequence ?! ?/))
                      collect (let ((this-char char))
-                               (list (string i)
-                                     char
-                                     (let ((variants
-                                            (gethash char emoji--variants)))
-                                       (if variants
-                                           ;; We have a variant, so add
-                                           ;; another level.
-                                           (emoji--define-transient
-                                            (cons (concat mname " " char)
-                                                  variants))
-                                         ;; Insert the emoji.
-                                         (lambda ()
-                                           (interactive)
-                                           (insert this-char)))))))))
+                               (list
+                                (string i)
+                                char
+                                (let ((variants
+                                       (gethash char emoji--variants)))
+                                  (if variants
+                                      ;; We have a variant, so add
+                                      ;; another level.
+                                      (emoji--define-transient
+                                       (cons (concat mname " " char)
+                                             variants))
+                                    ;; Insert the emoji.
+                                    (lambda ()
+                                      (interactive)
+                                      (insert this-char)))))))))
          (args (apply #'vector mname
                       (emoji--columnize layout
                                         (if has-subs 2 10)))))
