@@ -28,6 +28,7 @@
 (require 'transient)
 
 (defvar emoji--labels nil)
+(defvar emoji--variants nil)
 
 ;;;###autoload
 (defun emoji-insert ()
@@ -37,6 +38,7 @@
   ;; Remove debugging.
   (unless (and nil emoji--labels)
     (emoji--parse-labels)
+    (emoji--parse-variants)
     (emoji--define-transient))
   (funcall (intern "emoji-command-Emoji")))
 
@@ -77,6 +79,36 @@
     ;; Finally split up the too-long lists.
     (emoji--split-long-lists emoji--labels)))
 
+(defun emoji--parse-variants ()
+  (with-temp-buffer
+    (let ((table (make-hash-table :test #'equal)))
+      (insert-file-contents (expand-file-name
+                             "../admin/unidata/emoji-zwj-sequences.txt"
+                             data-directory))
+      ;; The format is "[...] ; Main ; sub".
+      (while (re-search-forward "RGI_Emoji_ZWJ_Sequence[ \t]+;[ \t]+\\(.*?\\)[ \t]+#.*(\\([^)]+\\))"
+                                nil t)
+        (let* ((name (match-string 1))
+               (glyph (match-string 2))
+               (base (replace-regexp-in-string ":.*" "" name)))
+          (if (equal base name)
+              ;; New base.
+              (setf (gethash base table) (list glyph))
+            ;; Add variants to the base.
+            (unless (gethash base table)
+              (let ((char (gethash (upcase base) ucs-names)))
+                ;; FIXME -- These are things like "man lifting weights".
+                ;;(unless char (message "No %s in `ucs-names'" base))
+                (setf (gethash base table) (list char))))
+            (setf (gethash base table)
+                  (nconc (gethash base table) (list glyph))))))
+      ;; Finally create the mapping from the base glyphs to derived ones.
+      (setq emoji--variants (make-hash-table :test #'equal))
+      (maphash (lambda (_k v)
+                 (setf (gethash (car v) emoji--variants)
+                       (cdr v)))
+               table))))
+
 (defun emoji--add-characters (chars main sub)
   (let ((subs (if (member sub '( "cat-face" "monkey-face" "skin-tone"
                                  "country-flag" "subdivision-flag"
@@ -95,7 +127,7 @@
               (capitalize (car subs))))
       (when (and (equal (car subs) "person")
                  (= (length subs) 1))
-        (setq subs (list "person" "human")))
+        (setq subs (list "person" "age")))
       (when (and (= (length subs) 1)
                  (not (string-search "-" (car subs))))
         (setq subs nil)))
@@ -139,9 +171,18 @@
                      collect (let ((this-char char))
                                (list (string i)
                                      char
-                                     (lambda ()
-                                       (interactive)
-                                       (insert this-char)))))))
+                                     (let ((variants
+                                            (gethash char emoji--variants)))
+                                       (if variants
+                                           ;; We have a variant, so add
+                                           ;; another level.
+                                           (emoji--define-transient
+                                            (cons (concat mname " " char)
+                                                  variants))
+                                         ;; Insert the emoji.
+                                         (lambda ()
+                                           (interactive)
+                                           (insert this-char)))))))))
          (args (apply #'vector mname
                       (emoji--columnize layout
                                         (if has-subs 2 10)))))
