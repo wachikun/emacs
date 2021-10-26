@@ -33,7 +33,8 @@
 (defun emoji-insert ()
   "Choose and insert an emoji glyph."
   (interactive)
-  (unless emoji--labels
+  ;; Remove debugging.
+  (unless (and nil emoji--labels)
     (emoji--parse-labels)
     (emoji--define-transient))
   (funcall (intern "emoji-command-Emoji")))
@@ -115,8 +116,9 @@
     (setq alist (cons "Emoji" emoji--labels)))
   (let* ((mname (pop alist))
          (name (intern (format "emoji-command-%s" mname)))
+         (has-subs (consp (cadr alist)))
          (layout
-          (if (consp (cadr alist))
+          (if has-subs
               ;; Define sub-maps.
               (cl-loop for entry in (emoji--compute-prefix alist)
                        collect (list
@@ -134,17 +136,9 @@
                                      (lambda ()
                                        (interactive)
                                        (insert this-char)))))))
-         (half (/ (length layout) 2))
-         args)
-    (unless (zerop (mod (length layout) 2))
-      (setq half (1+ half)))
-    (if (nthcdr half layout)
-        (setq args (vector mname
-                           (apply #'vector
-                                  (seq-take layout half))
-                           (apply #'vector
-                                  (nthcdr half layout))))
-      (setq args (vector mname (apply #'vector layout))))
+         (args (apply #'vector mname
+                      (emoji--columnize layout
+                                        (if has-subs 2 8)))))
     ;; There's probably a better way to do this...
     (setf (symbol-function name)
           (lambda ()
@@ -161,6 +155,12 @@
             (cl-mapcan (lambda (s) (transient--parse-child name s))
                        suffixes)))
     name))
+
+(defun emoji--columnize (list columns)
+  (cl-loop with length = (ceiling (/ (float (length list)) columns))
+           for i upto length
+           for part on list by (lambda (l) (nthcdr length l))
+           collect (apply #'vector (seq-take part length))))
 
 (defun emoji--compute-prefix (alist)
   "Compute characters to use for entries in ALIST.
