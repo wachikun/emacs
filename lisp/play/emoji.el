@@ -48,17 +48,23 @@
   (emoji--init)
   (funcall (intern "emoji-command-Emoji")))
 
+(defvar emoji--insert-buffer)
+
 ;;;###autoload
 (defun list-emojis ()
-  "List emojis and insert the one that's selected."
+  "List emojis and insert the one that's selected.
+The character will be inserted into the buffer that was selected
+when the command was issued."
   (interactive)
-  (emoji--init)
-  (pop-to-buffer (get-buffer-create "*Emoji*"))
-  (let ((inhibit-read-only t))
-    (erase-buffer)
-    (emoji-list-mode)
-    (emoji--list-generate nil (cons nil emoji--labels))
-    (goto-char (point-min))))
+  (let ((buf (current-buffer)))
+    (emoji--init)
+    (pop-to-buffer (get-buffer-create "*Emoji*"))
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (emoji-list-mode)
+      (setq-local emoji--insert-buffer buf)
+      (emoji--list-generate nil (cons nil emoji--labels))
+      (goto-char (point-min)))))
 
 (defun emoji--list-generate (name alist)
   (let ((width (/ (window-width) 3))
@@ -105,14 +111,21 @@
   (let ((glyph (get-text-property (point) 'emoji-glyph)))
     (unless glyph
       (error "No emoji under point"))
-    (let ((variants (gethash glyph emoji--variants)))
+    (let ((variants (gethash glyph emoji--variants))
+          (end-func
+           (lambda ()
+             (let ((buf emoji--insert-buffer))
+               (quit-window)
+               (if (buffer-live-p buf)
+                   (switch-to-buffer buf)
+                 (error "Buffer disappeared"))))))
       (if (not variants)
           (progn
-            (quit-window)
+            (funcall end-func)
             (insert glyph))
         (funcall
-         (emoji--define-transient (cons "list" variants)
-                                  nil #'quit-window))))))
+         (emoji--define-transient (cons "Choose Emoji" (cons glyph variants))
+                                  nil end-func))))))
 
 (defun emoji--init ()
   (setq transient-use-variable-pitch t)
