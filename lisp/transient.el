@@ -315,6 +315,12 @@ be remapped to `fixed-pitch' in that buffer."
   :group 'transient
   :type 'boolean)
 
+(defcustom transient-use-variable-pitch nil
+  "Whether to use alignment suitable for variable-pitch data."
+  :package-version '(transient . "0.3.6")
+  :group 'transient
+  :type 'boolean)
+
 (defcustom transient-force-single-column nil
   "Whether to force use of a single column to display suffixes.
 
@@ -2941,6 +2947,21 @@ have a history of their own.")
       (unless (string-match-p ".\n\\'" str)
         (insert ?\n)))))
 
+(defun transient--pixel-width (string)
+  (with-temp-buffer
+    ;; We use an "8" to get the typical character width, because
+    ;; this means that we won't chop off numbers if we're doing
+    ;; number columns.
+    (insert string)
+    (if (not (get-buffer-window (current-buffer)))
+        (save-window-excursion
+          ;; Avoid errors if the selected window is a dedicated one,
+          ;; and they just want to insert a document into it.
+          (set-window-dedicated-p nil nil)
+	  (set-window-buffer nil (current-buffer))
+	  (car (window-text-pixel-size nil (line-beginning-position) (point))))
+      (car (window-text-pixel-size nil (line-beginning-position) (point))))))
+
 (cl-defmethod transient--insert-group ((group transient-columns))
   (let* ((columns
           (mapcar
@@ -2953,9 +2974,15 @@ have a history of their own.")
            (oref group suffixes)))
          (rs (apply #'max (mapcar #'length columns)))
          (cs (length columns))
-         (cw (mapcar (lambda (col) (apply #'max (mapcar #'length col)))
+         (cw (mapcar (lambda (col)
+                       (apply #'max (mapcar (if transient-use-variable-pitch
+                                                #'transient--pixel-width
+                                              #'length)
+                                            col)))
                      columns))
-         (cc (transient--seq-reductions-from (apply-partially #'+ 3) cw 0)))
+         (cc (transient--seq-reductions-from
+              (apply-partially #'+ (if transient-use-variable-pitch 30 3))
+              cw 0)))
     (if transient-force-single-column
         (dotimes (c cs)
           (dotimes (r rs)
@@ -2966,11 +2993,21 @@ have a history of their own.")
             (insert ?\n)))
       (dotimes (r rs)
         (dotimes (c cs)
-          (insert (make-string (- (nth c cc) (current-column)) ?\s))
-          (when-let ((cell (nth r (nth c columns))))
-            (insert cell))
-          (when (= c (1- cs))
-            (insert ?\n)))))))
+          (if transient-use-variable-pitch
+              (progn
+                (when-let ((cell (nth r (nth c columns))))
+                  (insert cell))
+                (if (= c (1- cs))
+                    (insert ?\n)
+                  (insert
+                   (propertize
+	            " " 'display
+                    `(space :align-to (,(nth (1+ c) cc)))))))
+            (insert (make-string (- (nth c cc) (current-column)) ?\s))
+            (when-let ((cell (nth r (nth c columns))))
+              (insert cell))
+            (when (= c (1- cs))
+              (insert ?\n))))))))
 
 (cl-defmethod transient--insert-group ((group transient-subgroups))
   (let* ((subgroups (oref group suffixes))
