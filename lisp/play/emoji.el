@@ -103,7 +103,12 @@
                 ;;(unless char (message "No %s in `ucs-names'" base))
                 (setf (gethash base table) (list char))))
             (setf (gethash base table)
-                  (nconc (gethash base table) (list glyph))))))
+                  (nconc (gethash base table) (list glyph))))
+          ;; Map "woman police officer: light skin tone" to "police
+          ;; officer", too.
+          (setf (gethash (substring glyph 0 1) emoji--variants)
+                (append (gethash (substring glyph 0 1) emoji--variants)
+                        (list glyph)))))
       ;; Finally create the mapping from the base glyphs to derived ones.
       (maphash (lambda (_k v)
                  (setf (gethash (car v) emoji--variants)
@@ -175,7 +180,7 @@
                                   (concat char (string  #xfe0f))
                                 char))))))
 
-(defun emoji--define-transient (&optional alist)
+(defun emoji--define-transient (&optional alist inhibit-variants)
   (unless alist
     (setq alist (cons "Emoji" emoji--labels)))
   (let* ((mname (pop alist))
@@ -202,13 +207,15 @@
                                 (string i)
                                 char
                                 (let ((variants
-                                       (gethash char emoji--variants)))
+                                       (and (not inhibit-variants)
+                                            (gethash char emoji--variants))))
                                   (if variants
                                       ;; We have a variant, so add
                                       ;; another level.
                                       (emoji--define-transient
                                        (cons (concat mname " " char)
-                                             variants))
+                                             (cons char variants))
+                                       'no-variants)
                                     ;; Insert the emoji.
                                     (lambda ()
                                       (interactive)
