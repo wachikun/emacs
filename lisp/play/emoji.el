@@ -34,6 +34,79 @@
 (defun emoji-insert ()
   "Choose and insert an emoji glyph."
   (interactive)
+  (emoji--init)
+  (funcall (intern "emoji-command-Emoji")))
+
+;;;###autoload
+(defun list-emojis ()
+  "List emojis and insert the one that's selected."
+  (interactive)
+  (emoji--init)
+  (pop-to-buffer (get-buffer-create "*Emoji*"))
+  (let ((inhibit-read-only t))
+    (erase-buffer)
+    (emoji-list-mode)
+    (emoji--list-generate nil (cons nil emoji--labels))
+    (goto-char (point-min))))
+
+(defgroup emoji nil
+  "Inserting Emojist."
+  :version "29.1"
+  :group 'play)
+
+(defface emoji-list-header-face
+  '((default :weight bold :inherit variable-pitch))
+  "Face for web pages with invalid certificates."
+  :version "29.1")
+
+(defun emoji--list-generate (name alist)
+  (let ((width (/ (window-width) 3))
+        (mname (pop alist)))
+    (if (consp (car alist))
+        (mapcar (lambda (elem)
+                  (emoji--list-generate (if name
+                                            (concat name " " mname)
+                                          mname)
+                                        elem))
+                alist)
+      (insert (propertize (concat name " " mname)
+                          'face 'emoji-list-header-face)
+              "\n\n")
+      (cl-loop for i from 1
+               for char in alist
+               do (insert (propertize char
+                                      'emoji-glyph char))
+               (when (zerop (mod i width))
+                 (insert "\n")))
+      (insert "\n\n"))))
+
+(defvar-keymap emoji-list-mode-map
+  ["RET"] #'emoji-list-select
+  ["<mouse-2>"] #'emoji-list-select
+  [follow-link] 'mouse-face)
+
+(define-derived-mode emoji-list-mode special-mode "Emoji"
+  "Mode to display emojis."
+  :interactive nil
+  (setq-local truncate-lines t))
+
+(defun emoji-list-select (event)
+  "Select the emoji under point."
+  (interactive (list last-nonmenu-event) emoji-list-mode)
+  (mouse-set-point event)
+  (let ((glyph (get-text-property (point) 'emoji-glyph)))
+    (unless glyph
+      (error "No emoji under point"))
+    (let ((variants (gethash glyph emoji--variants)))
+      (if (not variants)
+          (progn
+            (quit-window)
+            (insert glyph))
+        (funcall
+         (emoji--define-transient (cons "list" variants)
+                                  nil #'quit-window))))))
+
+(defun emoji--init ()
   (setq transient-use-variable-pitch t)
   ;; Remove debugging.
   (unless (and nil emoji--labels)
@@ -41,8 +114,7 @@
     (emoji--parse-labels)
     (emoji--parse-normal-variants)
     (emoji--parse-zwj-variants)
-    (emoji--define-transient))
-  (funcall (intern "emoji-command-Emoji")))
+    (emoji--define-transient)))
 
 (defun emoji--parse-labels ()
   (setq emoji--labels nil)
@@ -180,7 +252,8 @@
                                   (concat char (string  #xfe0f))
                                 char))))))
 
-(defun emoji--define-transient (&optional alist inhibit-variants)
+(defun emoji--define-transient (&optional alist inhibit-variants
+                                          end-function)
   (unless alist
     (setq alist (cons "Emoji" emoji--labels)))
   (let* ((mname (pop alist))
@@ -219,6 +292,8 @@
                                     ;; Insert the emoji.
                                     (lambda ()
                                       (interactive)
+                                      (when end-function
+                                        (funcall end-function))
                                       (insert this-char)))))))))
          (args (apply #'vector mname
                       (emoji--columnize layout
