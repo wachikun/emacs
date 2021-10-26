@@ -40,6 +40,7 @@
 (defvar emoji--labels nil)
 (defvar emoji--derived nil)
 (defvar emoji--names (make-hash-table :test #'equal))
+(defvar emoji--done-derived nil)
 
 ;;;###autoload
 (defun emoji-insert (&optional text)
@@ -291,8 +292,6 @@ when the command was issued."
                                   ;; SELECTOR-16.
                                   (concat char (string #xfe0f))
                                 char))))))
-
-(defvar emoji--done-derived nil)
 
 (defun emoji--define-transient (&optional alist inhibit-derived
                                           end-function)
