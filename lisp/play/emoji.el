@@ -37,8 +37,8 @@
   (setq transient-use-variable-pitch t)
   ;; Remove debugging.
   (unless (and nil emoji--labels)
-    (emoji--parse-labels)
     (setq emoji--variants (make-hash-table :test #'equal))
+    (emoji--parse-labels)
     (emoji--parse-normal-variants)
     (emoji--parse-zwj-variants)
     (emoji--define-transient))
@@ -98,7 +98,7 @@
               (setf (gethash base table) (list glyph))
             ;; Add variants to the base.
             (unless (gethash base table)
-              (let ((char (gethash (upcase base) ucs-names)))
+              (let ((char (gethash (upcase base) (ucs-names))))
                 ;; FIXME -- These are things like "man lifting weights".
                 ;;(unless char (message "No %s in `ucs-names'" base))
                 (setf (gethash base table) (list char))))
