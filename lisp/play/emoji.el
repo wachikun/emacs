@@ -127,9 +127,11 @@ when the command was issued."
           (progn
             (funcall end-func)
             (insert glyph))
-        (funcall
-         (emoji--define-transient (cons "Choose Emoji" (cons glyph derived))
-                                  nil end-func))))))
+        (let ((emoji--done-derived (make-hash-table :test #'equal)))
+          (setf (gethash glyph emoji--done-derived) t)
+          (funcall
+           (emoji--define-transient (cons "Choose Emoji" (cons glyph derived))
+                                    nil end-func)))))))
 
 (defun emoji--init ()
   ;; Remove debugging.
@@ -290,12 +292,16 @@ when the command was issued."
                                   (concat char (string #xfe0f))
                                 char))))))
 
+(defvar emoji--done-derived nil)
+
 (defun emoji--define-transient (&optional alist inhibit-derived
                                           end-function)
   (unless alist
     (setq alist (cons "Emoji" emoji--labels)))
   (let* ((mname (pop alist))
          (name (intern (format "emoji--command-%s" mname)))
+         (emoji--done-derived (or emoji--done-derived
+                                  (make-hash-table :test #'equal)))
          (has-subs (consp (cadr alist)))
          (layout
           (if has-subs
@@ -319,14 +325,20 @@ when the command was issued."
                                 char
                                 (let ((derived
                                        (and (not inhibit-derived)
+                                            (not (gethash char
+                                                          emoji--done-derived))
                                             (gethash char emoji--derived))))
                                   (if derived
                                       ;; We have a derived glyph, so add
                                       ;; another level.
-                                      (emoji--define-transient
-                                       (cons (concat mname " " char)
-                                             (cons char derived))
-                                       t end-function)
+                                      (progn
+                                        (setf (gethash char
+                                                       emoji--done-derived)
+                                              t)
+                                        (emoji--define-transient
+                                         (cons (concat mname " " char)
+                                               (cons char derived))
+                                         t end-function))
                                     ;; Insert the emoji.
                                     (lambda ()
                                       (interactive)
@@ -423,9 +435,11 @@ We prefer the earliest unique letter."
            (derived (gethash glyph emoji--derived)))
       (if (not derived)
           (insert glyph)
-        (funcall
-         (emoji--define-transient
-          (cons "Choose Emoji" (cons glyph derived))))))))
+        (let ((emoji--done-derived (make-hash-table :test #'equal)))
+          (setf (gethash glyph emoji--done-derived) t)
+          (funcall
+           (emoji--define-transient
+            (cons "Choose Emoji" (cons glyph derived)))))))))
 
 (provide 'emoji)
 
