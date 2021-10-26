@@ -27,8 +27,19 @@
 (eval-when-compile (require 'cl-lib))
 (require 'transient)
 
+(defgroup emoji nil
+  "Inserting Emojist."
+  :version "29.1"
+  :group 'play)
+
+(defface emoji-list-header-face
+  '((default :weight bold :inherit variable-pitch))
+  "Face for web pages with invalid certificates."
+  :version "29.1")
+
 (defvar emoji--labels nil)
 (defvar emoji--variants nil)
+(defvar emoji--names (make-hash-table :test #'equal))
 
 ;;;###autoload
 (defun emoji-insert ()
@@ -49,33 +60,30 @@
     (emoji--list-generate nil (cons nil emoji--labels))
     (goto-char (point-min))))
 
-(defgroup emoji nil
-  "Inserting Emojist."
-  :version "29.1"
-  :group 'play)
-
-(defface emoji-list-header-face
-  '((default :weight bold :inherit variable-pitch))
-  "Face for web pages with invalid certificates."
-  :version "29.1")
-
 (defun emoji--list-generate (name alist)
   (let ((width (/ (window-width) 3))
         (mname (pop alist)))
     (if (consp (car alist))
+        ;; Recurse.
         (mapcar (lambda (elem)
                   (emoji--list-generate (if name
                                             (concat name " " mname)
                                           mname)
                                         elem))
                 alist)
+      ;; Output this block of emojis.
       (insert (propertize (concat name " " mname)
                           'face 'emoji-list-header-face)
               "\n\n")
       (cl-loop for i from 1
                for char in alist
-               do (insert (propertize char
-                                      'emoji-glyph char))
+               do (insert
+                   (propertize
+                    char
+                    'emoji-glyph char
+                    'help-echo
+                    (or (gethash char emoji--names)
+                        (get-char-code-property (aref char 0) 'name))))
                (when (zerop (mod i width))
                  (insert "\n")))
       (insert "\n\n"))))
@@ -167,7 +175,8 @@
                (base (replace-regexp-in-string ":.*" "" name)))
           (if (equal base name)
               ;; New base.
-              (setf (gethash base table) (list glyph))
+              (setf (gethash base table) (list glyph)
+                    (gethash glyph emoji--names) name)
             ;; Add variants to the base.
             (unless (gethash base table)
               (let ((char (gethash (upcase base) (ucs-names))))
