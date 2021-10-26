@@ -199,7 +199,15 @@ when the command was issued."
               (let ((char (gethash (upcase base) (ucs-names))))
                 ;; FIXME -- These are things like "man lifting weights".
                 ;;(unless char (message "No %s in `ucs-names'" base))
-                (setf (gethash base table) (list char))))
+                (if char
+                    (setf (gethash base table) (list char))
+                  (let ((glyph-base (string (aref glyph 0))))
+                    ;; See if we need to add a VS-16 to it.
+                    (when (eq (aref char-script-table (elt glyph 0)) 'symbol)
+                      (setq glyph-base (concat glyph-base (string #xfe0f))))
+                    (setf (gethash glyph-base emoji--derived)
+                          (append (gethash glyph-base emoji--derived)
+                                  (list glyph)))))))
             (setf (gethash base table)
                   (nconc (gethash base table) (list glyph))))
           ;; Map "woman police officer: light skin tone" to "police
@@ -225,6 +233,9 @@ when the command was issued."
       (while (looking-at "\\([[:xdigit:]]+\\) +\\([[:xdigit:]]+\\)")
         (let ((parent (string (string-to-number (match-string 1) 16)))
               (modifier (string (string-to-number (match-string 2) 16))))
+          ;; See if we need to add a VS-16 to it.
+          (when (eq (aref char-script-table (elt parent 0)) 'symbol)
+            (setq parent (concat parent (string #xfe0f))))
           (setf (gethash parent emoji--derived)
                 (append (gethash parent emoji--derived)
                         (list (concat parent modifier)))))
@@ -275,7 +286,7 @@ when the command was issued."
                                   ;; has Emoji_Presentation = No.
                                   ;; Donʼt ask.  Add VARIATION
                                   ;; SELECTOR-16.
-                                  (concat char (string  #xfe0f))
+                                  (concat char (string #xfe0f))
                                 char))))))
 
 (defun emoji--define-transient (&optional alist inhibit-derived
