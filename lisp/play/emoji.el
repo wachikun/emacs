@@ -309,7 +309,7 @@ when the command was issued."
                                        (and (not inhibit-derived)
                                             (gethash char emoji--derived))))
                                   (if derived
-                                      ;; We have a variant, so add
+                                      ;; We have a derived glyph, so add
                                       ;; another level.
                                       (emoji--define-transient
                                        (cons (concat mname " " char)
