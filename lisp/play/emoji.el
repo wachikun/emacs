@@ -33,6 +33,7 @@
 (defun emoji-insert ()
   "Choose and insert an emoji glyph."
   (interactive)
+  (setq transient-use-variable-pitch t)
   ;; Remove debugging.
   (unless (and nil emoji--labels)
     (emoji--parse-labels)
@@ -180,10 +181,10 @@ We prefer the earliest unique letter."
   (let ((name (concat (car entry) " "))
         (children (emoji--flatten entry)))
     (cl-loop for i from 0 upto 20
-             while (< (length name) 10)
+             while (< (length name) 18)
              do (cl-loop for child in children
                          for char = (elt child i)
-                         while (< (length name) 10)
+                         while (< (length name) 18)
                          when char
                          do (setq name (concat name char))))
     (if (= (length name) 20)
