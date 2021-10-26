@@ -38,7 +38,7 @@
   :version "29.1")
 
 (defvar emoji--labels nil)
-(defvar emoji--variants nil)
+(defvar emoji--derived nil)
 (defvar emoji--names (make-hash-table :test #'equal))
 
 ;;;###autoload
@@ -115,7 +115,7 @@ when the command was issued."
   (let ((glyph (get-text-property (point) 'emoji-glyph)))
     (unless glyph
       (error "No emoji under point"))
-    (let ((variants (gethash glyph emoji--variants))
+    (let ((derived (gethash glyph emoji--derived))
           (end-func
            (lambda ()
              (let ((buf emoji--insert-buffer))
@@ -123,22 +123,22 @@ when the command was issued."
                (if (buffer-live-p buf)
                    (switch-to-buffer buf)
                  (error "Buffer disappeared"))))))
-      (if (not variants)
+      (if (not derived)
           (progn
             (funcall end-func)
             (insert glyph))
         (funcall
-         (emoji--define-transient (cons "Choose Emoji" (cons glyph variants))
+         (emoji--define-transient (cons "Choose Emoji" (cons glyph derived))
                                   nil end-func))))))
 
 (defun emoji--init ()
   (setq transient-use-variable-pitch t)
   ;; Remove debugging.
   (unless (and nil emoji--labels)
-    (setq emoji--variants (make-hash-table :test #'equal))
+    (setq emoji--derived (make-hash-table :test #'equal))
     (emoji--parse-labels)
-    (emoji--parse-normal-variants)
-    (emoji--parse-zwj-variants)
+    (emoji--parse-normal-derived)
+    (emoji--parse-zwj-derived)
     (emoji--define-transient)))
 
 (defun emoji--parse-labels ()
@@ -178,7 +178,7 @@ when the command was issued."
     ;; Finally split up the too-long lists.
     (emoji--split-long-lists emoji--labels)))
 
-(defun emoji--parse-zwj-variants ()
+(defun emoji--parse-zwj-derived ()
   (with-temp-buffer
     (let ((table (make-hash-table :test #'equal)))
       (insert-file-contents (expand-file-name
@@ -194,7 +194,7 @@ when the command was issued."
               ;; New base.
               (setf (gethash base table) (list glyph)
                     (gethash glyph emoji--names) name)
-            ;; Add variants to the base.
+            ;; Add derived to the base.
             (unless (gethash base table)
               (let ((char (gethash (upcase base) (ucs-names))))
                 ;; FIXME -- These are things like "man lifting weights".
@@ -204,16 +204,16 @@ when the command was issued."
                   (nconc (gethash base table) (list glyph))))
           ;; Map "woman police officer: light skin tone" to "police
           ;; officer", too.
-          (setf (gethash (substring glyph 0 1) emoji--variants)
-                (append (gethash (substring glyph 0 1) emoji--variants)
+          (setf (gethash (substring glyph 0 1) emoji--derived)
+                (append (gethash (substring glyph 0 1) emoji--derived)
                         (list glyph)))))
       ;; Finally create the mapping from the base glyphs to derived ones.
       (maphash (lambda (_k v)
-                 (setf (gethash (car v) emoji--variants)
+                 (setf (gethash (car v) emoji--derived)
                        (cdr v)))
                table))))
 
-(defun emoji--parse-normal-variants ()
+(defun emoji--parse-normal-derived ()
   (with-temp-buffer
     (let ((case-fold-search t))
       (insert-file-contents (expand-file-name
@@ -225,8 +225,8 @@ when the command was issued."
       (while (looking-at "\\([[:xdigit:]]+\\) +\\([[:xdigit:]]+\\)")
         (let ((parent (string (string-to-number (match-string 1) 16)))
               (modifier (string (string-to-number (match-string 2) 16))))
-          (setf (gethash parent emoji--variants)
-                (append (gethash parent emoji--variants)
+          (setf (gethash parent emoji--derived)
+                (append (gethash parent emoji--derived)
                         (list (concat parent modifier)))))
         (forward-line 1)))))
 
@@ -278,7 +278,7 @@ when the command was issued."
                                   (concat char (string  #xfe0f))
                                 char))))))
 
-(defun emoji--define-transient (&optional alist inhibit-variants
+(defun emoji--define-transient (&optional alist inhibit-derived
                                           end-function)
   (unless alist
     (setq alist (cons "Emoji" emoji--labels)))
@@ -305,16 +305,16 @@ when the command was issued."
                                (list
                                 (string i)
                                 char
-                                (let ((variants
-                                       (and (not inhibit-variants)
-                                            (gethash char emoji--variants))))
-                                  (if variants
+                                (let ((derived
+                                       (and (not inhibit-derived)
+                                            (gethash char emoji--derived))))
+                                  (if derived
                                       ;; We have a variant, so add
                                       ;; another level.
                                       (emoji--define-transient
                                        (cons (concat mname " " char)
-                                             (cons char variants))
-                                       'no-variants)
+                                             (cons char derived))
+                                       'no-derived)
                                     ;; Insert the emoji.
                                     (lambda ()
                                       (interactive)
@@ -407,12 +407,12 @@ We prefer the earliest unique letter."
           (setf (gethash (downcase name) names) char))))
     (let* ((name (completing-read "Emoji: " names nil t))
            (glyph (gethash name names))
-           (variants (gethash glyph emoji--variants)))
-      (if (not variants)
+           (derived (gethash glyph emoji--derived)))
+      (if (not derived)
           (insert glyph)
         (funcall
          (emoji--define-transient
-          (cons "Choose Emoji" (cons glyph variants))))))))
+          (cons "Choose Emoji" (cons glyph derived))))))))
 
 (provide 'emoji)
 
