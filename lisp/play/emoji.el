@@ -73,7 +73,9 @@
                                (setq range-start nil))
                            (list (string char)))
                   do (setq prev char))
-         main sub)))))
+         main sub)))
+    ;; Finally split up the too-long lists.
+    (emoji--split-long-lists emoji--labels)))
 
 (defun emoji--add-characters (chars main sub)
   (let ((subs (if (member sub '( "cat-face" "monkey-face" "skin-tone"
@@ -97,8 +99,8 @@
       (when (and (= (length subs) 1)
                  (not (string-search "-" (car subs))))
         (setq subs nil)))
-      (when (equal (car subs) "person")
-        (pop subs))
+    (when (equal (car subs) "person")
+      (pop subs))
     ;; Useless category.
     (unless (member main '("Skin-Tone"))
       (unless (setq parent (assoc main emoji--labels))
@@ -132,7 +134,8 @@
             (cl-loop for char in alist
                      for i in (append (number-sequence ?a ?z)
                                       (number-sequence ?A ?Z)
-                                      (number-sequence ?0 ?9))
+                                      (number-sequence ?0 ?9)
+                                      (number-sequence ?! ?/))
                      collect (let ((this-char char))
                                (list (string i)
                                      char
@@ -200,6 +203,21 @@ We prefer the earliest unique letter."
       (cl-loop for child in alist
                append (emoji--flatten child))
     (list alist)))
+
+(defun emoji--split-long-lists (alist)
+  (let ((whole alist))
+    (pop alist)
+    (if (consp (cadr alist))
+        ;; Descend.
+        (cl-loop for child in alist
+                 do (emoji--split-long-lists child))
+      ;; We have a list.
+      (when (length> alist 77)
+        (setcdr whole
+                (cl-loop for prefix from ?a
+                         for bit on alist by (lambda (l) (nthcdr 77 l))
+                         collect (cons (concat (string prefix) "-group")
+                                       (seq-take bit 77))))))))
 
 (provide 'emoji)
 
