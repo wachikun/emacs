@@ -25,8 +25,18 @@
 ;;; Code:
 
 (eval-when-compile (require 'cl-lib))
+(require 'transient)
 
 (defvar emoji--labels nil)
+
+;;;###autoload
+(defun emoji-insert ()
+  "Choose and insert an emoji glyph."
+  (interactive)
+  (unless emoji--labels
+    (emoji--parse-labels)
+    (emoji--define-transient))
+  (funcall (intern "emoji-command-Emoji")))
 
 (defun emoji--parse-labels ()
   (setq emoji--labels nil)
@@ -41,6 +51,7 @@
         (emoji--add-characters
          (cl-loop with range-start
                   and set
+                  and prev
                   for char across ranges
                   ;; a-z
                   if (eql char ?-)
