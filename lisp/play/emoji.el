@@ -93,12 +93,12 @@
               (capitalize (car subs))))
       (when (and (equal (car subs) "person")
                  (= (length subs) 1))
-        (setq subs (list "person" "single")))
-      (when (equal (car subs) "person")
-        (pop subs))
+        (setq subs (list "person" "human")))
       (when (and (= (length subs) 1)
                  (not (string-search "-" (car subs))))
         (setq subs nil)))
+      (when (equal (car subs) "person")
+        (pop subs))
     ;; Useless category.
     (unless (member main '("Skin-Tone"))
       (unless (setq parent (assoc main emoji--labels))
@@ -130,7 +130,9 @@
                                        (cddr entry)))))
             ;; Insert an emoji.
             (cl-loop for char in alist
-                     for i from ?a
+                     for i in (append (number-sequence ?a ?z)
+                                      (number-sequence ?A ?Z)
+                                      (number-sequence ?0 ?9))
                      collect (let ((this-char char))
                                (list (string i)
                                      char
@@ -139,7 +141,7 @@
                                        (insert this-char)))))))
          (args (apply #'vector mname
                       (emoji--columnize layout
-                                        (if has-subs 2 8)))))
+                                        (if has-subs 2 10)))))
     ;; There's probably a better way to do this...
     (setf (symbol-function name)
           (lambda ()
@@ -159,7 +161,7 @@
 
 (defun emoji--columnize (list columns)
   (cl-loop with length = (ceiling (/ (float (length list)) columns))
-           for i upto length
+           for i upto columns
            for part on list by (lambda (l) (nthcdr length l))
            collect (apply #'vector (seq-take part length))))
 
@@ -170,6 +172,7 @@ We prefer the earliest unique letter."
            for entry in alist
            for name = (car entry)
            collect (cons (cl-loop for char across name
+                                  do (setq char (downcase char))
                                   while (gethash char taken)
                                   finally (progn
                                             (setf (gethash char taken) t)
