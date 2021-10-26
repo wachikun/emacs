@@ -46,7 +46,7 @@
   "Choose and insert an emoji glyph.
 If TEXT (interactively, the prefix), use a textual search instead
 of a visual interface."
-  (interactive "P")
+  (interactive "*P")
   (emoji--init)
   (if text
       (emoji--choose-emoji)
@@ -59,7 +59,7 @@ of a visual interface."
   "List emojis and insert the one that's selected.
 The character will be inserted into the buffer that was selected
 when the command was issued."
-  (interactive)
+  (interactive "*")
   (let ((buf (current-buffer)))
     (emoji--init)
     (pop-to-buffer (get-buffer-create "*Emoji*"))
