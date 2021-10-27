@@ -2944,9 +2944,6 @@ have a history of their own.")
 
 (defun transient--pixel-width (string)
   (with-temp-buffer
-    ;; We use an "8" to get the typical character width, because
-    ;; this means that we won't chop off numbers if we're doing
-    ;; number columns.
     (insert string)
     (if (not (get-buffer-window (current-buffer)))
         (save-window-excursion
