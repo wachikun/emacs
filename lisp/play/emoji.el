@@ -32,9 +32,17 @@
   :version "29.1"
   :group 'play)
 
-(defface emoji-list-header-face
+(defface emoji-list-header
   '((default :weight bold :inherit variable-pitch))
-  "Face for web pages with invalid certificates."
+  "Face for emoji list headers."
+  :version "29.1")
+
+(defface emoji-with-derivations
+  '((((background dark))
+     (:background "#202020"))
+    (((background light))
+     (:background "blue")))
+  "Face for emojis that have derivations."
   :version "29.1")
 
 (defvar emoji--labels nil)
@@ -86,18 +94,23 @@ when the command was issued."
                 alist)
       ;; Output this block of emojis.
       (insert (propertize (concat name " " mname)
-                          'face 'emoji-list-header-face)
+                          'face 'emoji-list-header)
               "\n\n")
       (cl-loop for i from 1
                for char in alist
                do (insert
                    (propertize
-                    char
+                    (emoji--fontify-char char)
                     'emoji-glyph char
                     'help-echo (emoji--name char)))
                (when (zerop (mod i width))
                  (insert "\n")))
       (insert "\n\n"))))
+
+(defun emoji--fontify-char (char)
+  (if (gethash char emoji--derived)
+      (propertize char 'face 'emoji-with-derivations)
+    char))
 
 (defun emoji--name (char)
   (or (gethash char emoji--names)
@@ -337,7 +350,7 @@ when the command was issued."
                      collect (let ((this-char char))
                                (list
                                 (string i)
-                                char
+                                (emoji--fontify-char char)
                                 (let ((derived
                                        (and (not inhibit-derived)
                                             (not (gethash char
