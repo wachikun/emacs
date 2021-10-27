@@ -49,6 +49,7 @@
 (defvar emoji--derived nil)
 (defvar emoji--names (make-hash-table :test #'equal))
 (defvar emoji--done-derived nil)
+(defvar emoji--recent (list "😀" "😖"))
 
 ;;;###autoload
 (defun emoji-insert (&optional text)
@@ -167,7 +168,7 @@ when the command was issued."
   ;; Remove debugging.
   (setq transient-use-variable-pitch t)
   (setq transient--use-variable-pitch t)
-  (unless emoji--labels
+  (unless (and nil emoji--labels)
     (setq emoji--derived (make-hash-table :test #'equal))
     (emoji--parse-labels)
     (emoji--parse-normal-derived)
@@ -334,13 +335,19 @@ when the command was issued."
          (layout
           (if has-subs
               ;; Define sub-maps.
-              (cl-loop for entry in (emoji--compute-prefix alist)
+              (cl-loop for entry in
+                       (emoji--compute-prefix
+                        (if (equal mname "Emoji")
+                            (cons (list "Recent") alist)
+                          alist))
                        collect (list
                                 (car entry)
                                 (emoji--compute-name (cdr entry))
-                                (emoji--define-transient
-                                 (cons (concat mname " " (cadr entry))
-                                       (cddr entry)))))
+                                (if (equal (cadr entry) "Recent")
+                                    (emoji--recent-transient end-function)
+                                  (emoji--define-transient
+                                   (cons (concat mname " " (cadr entry))
+                                         (cddr entry))))))
             ;; Insert an emoji.
             (cl-loop for char in alist
                      for i in (append (number-sequence ?a ?z)
@@ -370,8 +377,11 @@ when the command was issued."
                                     ;; Insert the emoji.
                                     (lambda ()
                                       (interactive)
+                                      ;; Allow switching to the correct
+                                      ;; buffer.
                                       (when end-function
                                         (funcall end-function))
+                                      (emoji--add-recent this-char)
                                       (insert this-char)))))))))
          (args (apply #'vector mname
                       (emoji--columnize layout
@@ -393,6 +403,19 @@ when the command was issued."
             (cl-mapcan (lambda (s) (transient--parse-child name s))
                        suffixes)))
     name))
+
+(defun emoji--recent-transient (end-function)
+  (lambda ()
+    (interactive)
+    (funcall (emoji--define-transient
+              (cons "Recent" emoji--recent) t end-function))))
+
+(defun emoji--add-recent (char)
+  (setq emoji--recent (delete char emoji--recent))
+  (push char emoji--recent)
+  ;; Shorten the list.
+  (when-let ((tail (nthcdr 10 emoji--recent)))
+    (setcdr tail nil)))
 
 (defun emoji--columnize (list columns)
   (cl-loop with length = (ceiling (/ (float (length list)) columns))
