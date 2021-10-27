@@ -168,7 +168,7 @@ when the command was issued."
   ;; Remove debugging.
   (setq transient-use-variable-pitch t)
   (setq transient--use-variable-pitch t)
-  (unless (and nil emoji--labels)
+  (unless emoji--labels
     (setq emoji--derived (make-hash-table :test #'equal))
     (emoji--parse-labels)
     (emoji--parse-normal-derived)
