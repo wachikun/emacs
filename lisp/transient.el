@@ -315,13 +315,6 @@ be remapped to `fixed-pitch' in that buffer."
   :group 'transient
   :type 'boolean)
 
-(defcustom transient-use-variable-pitch nil
-  "Whether to use alignment suitable for variable-pitch data.
-Bind around the call to `transient-setup' or set."
-  :package-version '(transient . "0.3.6")
-  :group 'transient
-  :type 'boolean)
-
 (defcustom transient-force-single-column nil
   "Whether to force use of a single column to display suffixes.
 
@@ -597,7 +590,8 @@ If `transient-save-history' is nil, then do nothing."
    (transient-suffix     :initarg :transient-suffix     :initform nil)
    (transient-non-suffix :initarg :transient-non-suffix :initform nil)
    (incompatible         :initarg :incompatible         :initform nil)
-   (suffix-description   :initarg :suffix-description))
+   (suffix-description   :initarg :suffix-description)
+   (variable-pitch       :initarg :variable-pitch       :initform nil))
   "Transient prefix command.
 
 Each transient prefix command consists of a command, which is
@@ -1322,9 +1316,6 @@ Usually it remains selected while the transient is active.")
   "The buffer that was current before the transient was invoked.
 Usually it remains current while the transient is active.")
 
-(defvar transient--use-variable-pitch nil
-  "Whether to use variable pitch or not.")
-
 (defvar transient--debug nil "Whether put debug information into *Messages*.")
 
 (defvar transient--history nil)
@@ -1707,7 +1698,6 @@ EDIT may be non-nil."
     (setq transient--redisplay-map (transient--make-redisplay-map))
     (setq transient--original-window (selected-window))
     (setq transient--original-buffer (current-buffer))
-    (setq transient--use-variable-pitch transient-use-variable-pitch)
     (transient--redisplay)
     (transient--init-transient)
     (transient--suspend-which-key-mode)))
@@ -2977,16 +2967,17 @@ have a history of their own.")
                  (push desc rows))
                rows))
            (oref group suffixes)))
+         (vp (oref transient--prefix variable-pitch))
          (rs (apply #'max (mapcar #'length columns)))
          (cs (length columns))
          (cw (mapcar (lambda (col)
-                       (apply #'max (mapcar (if transient--use-variable-pitch
+                       (apply #'max (mapcar (if vp
                                                 #'transient--pixel-width
                                               #'length)
                                             col)))
                      columns))
          (cc (transient--seq-reductions-from
-              (apply-partially #'+ (if transient--use-variable-pitch 30 3))
+              (apply-partially #'+ (if vp 30 3))
               cw 0)))
     (if transient-force-single-column
         (dotimes (c cs)
@@ -2998,7 +2989,7 @@ have a history of their own.")
             (insert ?\n)))
       (dotimes (r rs)
         (dotimes (c cs)
-          (if transient--use-variable-pitch
+          (if vp
               (progn
                 (when-let ((cell (nth r (nth c columns))))
                   (insert cell))

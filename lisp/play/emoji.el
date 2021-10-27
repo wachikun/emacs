@@ -174,8 +174,6 @@ when the command was issued."
 
 (defun emoji--init (&optional force)
   ;; Remove debugging.
-  (setq transient-use-variable-pitch t)
-  (setq transient--use-variable-pitch t)
   (when (or (not emoji--labels)
             force)
     (setq emoji--derived (make-hash-table :test #'equal))
@@ -400,15 +398,14 @@ when the command was issued."
     (setf (symbol-function name)
           (lambda ()
             (interactive)
-            (let ((transient-use-variable-pitch t))
-              (transient-setup name))))
+            (transient-setup name)))
     (pcase-let ((`(,class ,slots ,suffixes ,docstr ,_body)
                  (transient--expand-define-args (list args))))
        (put name 'interactive-only t)
        (put name 'function-documentation docstr)
        (put name 'transient--prefix
             (apply (or class 'transient-prefix) :command name
-                   slots))
+                   (cons :variable-pitch (cons t slots))))
        (put name 'transient--layout
             (cl-mapcan (lambda (s) (transient--parse-child name s))
                        suffixes)))
