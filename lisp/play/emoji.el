@@ -113,9 +113,10 @@ when the command was issued."
                  (insert "\n")))
       (insert "\n\n"))))
 
-(defun emoji--fontify-char (char)
+(defun emoji--fontify-char (char &optional inhibit-derived)
   (propertize char 'face
-              (if (gethash char emoji--derived)
+              (if (and (not inhibit-derived)
+                       (gethash char emoji--derived))
                   'emoji-with-derivations
                 'emoji)))
 
@@ -364,7 +365,8 @@ when the command was issued."
                      collect (let ((this-char char))
                                (list
                                 (string i)
-                                (emoji--fontify-char char)
+                                (emoji--fontify-char
+                                 char inhibit-derived)
                                 (let ((derived
                                        (and (not inhibit-derived)
                                             (not (gethash char
