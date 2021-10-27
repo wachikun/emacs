@@ -55,6 +55,7 @@
 (defvar emoji--names (make-hash-table :test #'equal))
 (defvar emoji--done-derived nil)
 (defvar emoji--recent (list "😀" "😖"))
+(defvar emoji--insert-buffer)
 
 ;;;###autoload
 (defun emoji-insert (&optional text)
@@ -67,7 +68,12 @@ of a visual interface."
       (emoji--choose-emoji)
     (funcall (intern "emoji--command-Emoji"))))
 
-(defvar emoji--insert-buffer)
+;;;###autoload
+(defun emoji-search ()
+  "Choose and insert an emoji glyph by searching for an emoji name."
+  (interactive "*")
+  (emoji--init)
+  (emoji--choose-emoji))
 
 ;;;###autoload
 (defun emoji-list ()
