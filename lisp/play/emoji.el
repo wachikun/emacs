@@ -37,11 +37,16 @@
   "Face for emoji list headers."
   :version "29.1")
 
+(defface emoji
+  '((t :height 2.0))
+  "Face used when displaying an emoji."
+  :version "29.1")
+
 (defface emoji-with-derivations
   '((((background dark))
-     (:background "#202020"))
+     (:background "#202020" :inherit emoji))
     (((background light))
-     (:background "blue")))
+     (:background "#e0e0e0" :inherit emoji)))
   "Face for emojis that have derivations."
   :version "29.1")
 
@@ -109,9 +114,10 @@ when the command was issued."
       (insert "\n\n"))))
 
 (defun emoji--fontify-char (char)
-  (if (gethash char emoji--derived)
-      (propertize char 'face 'emoji-with-derivations)
-    char))
+  (propertize char 'face
+              (if (gethash char emoji--derived)
+                  'emoji-with-derivations
+                'emoji)))
 
 (defun emoji--name (char)
   (or (gethash char emoji--names)
@@ -164,11 +170,12 @@ when the command was issued."
           (error "Unknown name")
         (message "%s" name)))))
 
-(defun emoji--init ()
+(defun emoji--init (&optional force)
   ;; Remove debugging.
   (setq transient-use-variable-pitch t)
   (setq transient--use-variable-pitch t)
-  (unless emoji--labels
+  (when (or (not emoji--labels)
+            force)
     (setq emoji--derived (make-hash-table :test #'equal))
     (emoji--parse-labels)
     (emoji--parse-normal-derived)
@@ -385,7 +392,7 @@ when the command was issued."
                                       (insert this-char)))))))))
          (args (apply #'vector mname
                       (emoji--columnize layout
-                                        (if has-subs 2 10)))))
+                                        (if has-subs 2 8)))))
     ;; There's probably a better way to do this...
     (setf (symbol-function name)
           (lambda ()
