@@ -2943,16 +2943,22 @@ have a history of their own.")
         (insert ?\n)))))
 
 (defun transient--pixel-width (string)
+  "Return the width of STRING in pixels."
   (with-temp-buffer
     (insert string)
-    (if (not (get-buffer-window (current-buffer)))
-        (save-window-excursion
-          ;; Avoid errors if the selected window is a dedicated one,
-          ;; and they just want to insert a document into it.
-          (set-window-dedicated-p nil nil)
-	  (set-window-buffer nil (current-buffer))
-	  (car (window-text-pixel-size nil (line-beginning-position) (point))))
-      (car (window-text-pixel-size nil (line-beginning-position) (point))))))
+    (save-window-excursion
+      (let ((dedicated (window-dedicated-p)))
+        ;; Avoid errors if the selected window is a dedicated one,
+        ;; and they just want to insert a document into it.
+        (unwind-protect
+            (progn
+              (when dedicated
+                (set-window-dedicated-p nil nil))
+              (set-window-buffer nil (current-buffer))
+              (car (window-text-pixel-size
+                    nil (line-beginning-position) (point))))
+          (when dedicated
+            (set-window-dedicated-p nil dedicated)))))))
 
 (cl-defmethod transient--insert-group ((group transient-columns))
   (let* ((columns
