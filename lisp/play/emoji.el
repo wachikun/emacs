@@ -412,12 +412,14 @@ when the command was issued."
     name))
 
 (defun emoji--recent-transient (end-function)
+  "Create a function to display a dynamically generated menu."
   (lambda ()
     (interactive)
     (funcall (emoji--define-transient
               (cons "Recent" emoji--recent) t end-function))))
 
 (defun emoji--add-recent (char)
+  "Add CHAR to the set of recently used emojis."
   (setq emoji--recent (delete char emoji--recent))
   (push char emoji--recent)
   ;; Shorten the list.
@@ -425,6 +427,7 @@ when the command was issued."
     (setcdr tail nil)))
 
 (defun emoji--columnize (list columns)
+  "Split LIST into COLUMN columns."
   (cl-loop with length = (ceiling (/ (float (length list)) columns))
            for i upto columns
            for part on list by (lambda (l) (nthcdr length l))
@@ -447,15 +450,20 @@ We prefer the earliest unique letter."
 (defun emoji--compute-name (entry)
   "Add example emojis to the name."
   (let ((name (concat (car entry) " "))
-        (children (emoji--flatten entry)))
+        (children (emoji--flatten entry))
+        (max 18))
     (cl-loop for i from 0 upto 20
-             while (< (length name) 18)
+             ;; Make the name at most 18 characters long, and choose
+             ;; from all the children.
+             while (< (length name) max)
              do (cl-loop for child in children
                          for char = (elt child i)
-                         while (< (length name) 18)
+                         while (< (length name) max)
                          when char
                          do (setq name (concat name char))))
-    (if (= (length name) 20)
+    (if (= (length name) max)
+        ;; Make an ellipsis signal that we've not exhausted the
+        ;; possibilities.
         (concat name "…")
       name)))
 
