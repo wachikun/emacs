@@ -160,6 +160,7 @@ when the command was issued."
                  (error "Buffer disappeared"))))))
       (if (not derived)
           (progn
+            (emoji--add-recent glyph)
             (funcall end-func)
             (insert glyph))
         (let ((emoji--done-derived (make-hash-table :test #'equal)))
@@ -430,7 +431,7 @@ when the command was issued."
   (setq emoji--recent (delete char emoji--recent))
   (push char emoji--recent)
   ;; Shorten the list.
-  (when-let ((tail (nthcdr 10 emoji--recent)))
+  (when-let ((tail (nthcdr 30 emoji--recent)))
     (setcdr tail nil)))
 
 (defun emoji--columnize (list columns)
@@ -509,7 +510,9 @@ We prefer the earliest unique letter."
            (derived (gethash glyph emoji--derived)))
       (if (not derived)
           ;; Simple glyph with no derivations.
-          (insert glyph)
+          (progn
+            (emoji--add-recent glyph)
+            (insert glyph))
         ;; Choose a derived version.
         (let ((emoji--done-derived (make-hash-table :test #'equal)))
           (setf (gethash glyph emoji--done-derived) t)
