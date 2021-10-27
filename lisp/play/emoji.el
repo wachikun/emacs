@@ -116,6 +116,7 @@ when the command was issued."
 (defun emoji--fontify-char (char &optional inhibit-derived)
   (propertize char 'face
               (if (and (not inhibit-derived)
+                       (not (gethash char emoji--done-derived))
                        (gethash char emoji--derived))
                   'emoji-with-derivations
                 'emoji)))
