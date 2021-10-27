@@ -64,6 +64,8 @@ when the command was issued."
   (let ((buf (current-buffer)))
     (emoji--init)
     (switch-to-buffer (get-buffer-create "*Emoji*"))
+    ;; Don't regenerate the buffer if it already exists -- this will
+    ;; leave point where it was the last time it was used.
     (when (zerop (buffer-size))
       (let ((inhibit-read-only t))
         (emoji-list-mode)
@@ -92,16 +94,19 @@ when the command was issued."
                    (propertize
                     char
                     'emoji-glyph char
-                    'help-echo
-                    (or (gethash char emoji--names)
-                        (get-char-code-property (aref char 0) 'name))))
+                    'help-echo (emoji--name char)))
                (when (zerop (mod i width))
                  (insert "\n")))
       (insert "\n\n"))))
 
+(defun emoji--name (char)
+  (or (gethash char emoji--names)
+      (get-char-code-property (aref char 0) 'name)))
+
 (defvar-keymap emoji-list-mode-map
   ["RET"] #'emoji-list-select
   ["<mouse-2>"] #'emoji-list-select
+  "h" #'emoji-list-help
   [follow-link] 'mouse-face)
 
 (define-derived-mode emoji-list-mode special-mode "Emoji"
@@ -133,6 +138,17 @@ when the command was issued."
           (funcall
            (emoji--define-transient (cons "Choose Emoji" (cons glyph derived))
                                     nil end-func)))))))
+
+(defun emoji-list-help ()
+  "Say what the emoji under point is."
+  (interactive nil emoji-list-mode)
+  (let ((glyph (get-text-property (point) 'emoji-glyph)))
+    (unless glyph
+      (error "No emoji under point"))
+    (let ((name (emoji--name glyph)))
+      (if (not name)
+          (error "Unknown name")
+        (message "%s" name)))))
 
 (defun emoji--init ()
   ;; Remove debugging.
@@ -423,17 +439,20 @@ We prefer the earliest unique letter."
                                        (seq-take bit 77))))))))
 
 (defun emoji--choose-emoji ()
+  ;; Find all names.
   (let ((names (make-hash-table :test #'equal)))
     (dolist (section (emoji--flatten (cons "Emoji" emoji--labels)))
       (dolist (char section)
-        (when-let ((name (or (gethash char emoji--names)
-                             (get-char-code-property (aref char 0) 'name))))
+        (when-let ((name (emoji--name char)))
           (setf (gethash (downcase name) names) char))))
+    ;; Use the list of names.
     (let* ((name (completing-read "Emoji: " names nil t))
            (glyph (gethash name names))
            (derived (gethash glyph emoji--derived)))
       (if (not derived)
+          ;; Simple glyph with no derivations.
           (insert glyph)
+        ;; Choose a derived version.
         (let ((emoji--done-derived (make-hash-table :test #'equal)))
           (setf (gethash glyph emoji--done-derived) t)
           (funcall
