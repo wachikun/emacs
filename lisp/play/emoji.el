@@ -88,7 +88,7 @@ when the command was issued."
         (goto-char (point-min))))))
 
 (defun emoji--list-generate (name alist)
-  (let ((width (/ (window-width) 3))
+  (let ((width (/ (window-width) 5))
         (mname (pop alist)))
     (if (consp (car alist))
         ;; Recurse.
