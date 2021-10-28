@@ -2966,6 +2966,7 @@ have a history of their own.")
            (oref group suffixes)))
          (vp (oref transient--prefix variable-pitch))
          (rs (apply #'max (mapcar #'length columns)))
+         (multiplier (if vp (transient--pixel-width " ") 1))
          (cs (length columns))
          (cw (mapcar (lambda (col)
                        (apply #'max (mapcar (if vp
@@ -2974,7 +2975,7 @@ have a history of their own.")
                                             col)))
                      columns))
          (cc (transient--seq-reductions-from
-              (apply-partially #'+ (if vp 30 3))
+              (apply-partially #'+ (* 3 multiplier))
               cw 0)))
     (if transient-force-single-column
         (dotimes (c cs)
