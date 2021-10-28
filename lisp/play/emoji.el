@@ -184,8 +184,11 @@ when the command was issued."
   ;; Remove debugging.
   (when (or (not emoji--labels)
             force)
-    (setq emoji--derived (make-hash-table :test #'equal))
-    (emoji--parse-emoji-test)
+    (unless force
+      (ignore-errors (require 'emoji-labels)))
+    (unless emoji--labels
+      (setq emoji--derived (make-hash-table :test #'equal))
+      (emoji--parse-emoji-test))
     (emoji--define-transient)))
 
 (defun emoji--parse-emoji-test ()
@@ -249,6 +252,36 @@ when the command was issued."
                  (setf (gethash (car v) emoji--derived)
                        (cdr v)))
                derivations))))
+
+(defun emoji--generate-file (&optional file)
+  "Generate an .el file with emoji mapping data and write it to FILE."
+  ;; Running from Makefile.
+  (unless file
+    (setq file (pop command-line-args-left)))
+  (emoji--init t)
+  (with-temp-buffer
+    (insert ";; Generated file -- do not edit.   -*- lexical-binding:t -*-
+;; Copyright © 1991-2021 Unicode, Inc.
+;; Generated from Unicode data files by unidata-gen.el.
+;; The sources for this file are found in the admin/unidata/ directory in
+;; the Emacs sources.  The Unicode data files are used under the
+;; Unicode Terms of Use, as contained in the file copyright.html in that
+;; same directory.\n\n")
+    (dolist (var '(emoji--labels emoji--derived emoji--names))
+      (insert (format "(defconst %s '" var))
+      (pp (symbol-value var) (current-buffer))
+      (insert (format "\n) ;; End %s\n\n" var)))
+    (insert ";; Local Variables:
+;; coding: utf-8
+;; version-control: never
+;; no-byte-compile: t
+;; no-update-autoloads: t
+;; End:
+
+(provide 'emoji-labels)
+
+;;; uni-comment.el ends here\n")
+    (write-region (point-min) (point-max) file)))
 
 (defun emoji--base-name (name derivations)
   (let* ((base (replace-regexp-in-string ":.*" "" name))
