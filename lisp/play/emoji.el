@@ -268,32 +268,7 @@ when the command was issued."
             ;; emojis.
             (when (equal qualification "fully-qualified")
               (when (equal base name)
-                ;; "People & Body" is very large; split it up.
-                (cond
-                 ((equal group "People & Body")
-                  (if (or (string-match "\\`person" subgroup)
-                          (equal subgroup "family"))
-                      (emoji--add-glyph
-                       glyph "People"
-                       (if (equal subgroup "family")
-                           (list subgroup)
-                         ;; Avoid "Person person".
-                         (cdr (emoji--split-subgroup subgroup))))
-                    (emoji--add-glyph
-                     glyph "Body" (emoji--split-subgroup subgroup))))
-                 ;; "Smileys & Emotion" also seems sub-optimal.
-                 ((equal group "Smileys & Emotion")
-                  (if (equal subgroup "emotion")
-                      (emoji--add-glyph glyph "Emotion" nil)
-                    (let ((subs (emoji--split-subgroup subgroup)))
-                      ;; Remove one level of menus in the face case.
-                      (when (equal (car subs) "face")
-                        (pop subs))
-                      (emoji--add-glyph glyph "Smileys" subs))))
-                 ;; Don't modify the rest.
-                 (t
-                  (emoji--add-glyph
-                   glyph group (emoji--split-subgroup subgroup)))))
+                (emoji--add-to-group group subgroup glyph))
               ;; Create mapping from base glyph name to name of
               ;; derived glyphs.
               (setf (gethash base derivations)
@@ -306,6 +281,31 @@ when the command was issued."
                        (cdr v)))
                derivations))))
 
+(defun emoji--add-to-group (group subgroup glyph)
+  ;; "People & Body" is very large; split it up.
+  (cond
+   ((equal group "People & Body")
+    (if (or (string-match "\\`person" subgroup)
+            (equal subgroup "family"))
+        (emoji--add-glyph glyph "People"
+                          (if (equal subgroup "family")
+                              (list subgroup)
+                            ;; Avoid "Person person".
+                            (cdr (emoji--split-subgroup subgroup))))
+      (emoji--add-glyph glyph "Body" (emoji--split-subgroup subgroup))))
+   ;; "Smileys & Emotion" also seems sub-optimal.
+   ((equal group "Smileys & Emotion")
+    (if (equal subgroup "emotion")
+        (emoji--add-glyph glyph "Emotion" nil)
+      (let ((subs (emoji--split-subgroup subgroup)))
+        ;; Remove one level of menus in the face case.
+        (when (equal (car subs) "face")
+          (pop subs))
+        (emoji--add-glyph glyph "Smileys" subs))))
+   ;; Don't modify the rest.
+   (t
+    (emoji--add-glyph glyph group (emoji--split-subgroup subgroup)))))
+
 (defun emoji--generate-file (&optional file)
   "Generate an .el file with emoji mapping data and write it to FILE."
   ;; Running from Makefile.
@@ -315,9 +315,9 @@ when the command was issued."
   (with-temp-buffer
     (insert ";; Generated file -- do not edit.   -*- lexical-binding:t -*-
 ;; Copyright © 1991-2021 Unicode, Inc.
-;; Generated from Unicode data files by unidata-gen.el.
-;; The sources for this file are found in the admin/unidata/ directory in
-;; the Emacs sources.  The Unicode data files are used under the
+;; Generated from Unicode data files by emoji.el.
+;; The source for this file is found in the admin/unidata/emoji-test.txt
+;; file in the Emacs sources.  The Unicode data files are used under the
 ;; Unicode Terms of Use, as contained in the file copyright.html in that
 ;; same directory.\n\n")
     (dolist (var '(emoji--labels emoji--derived emoji--names))
@@ -333,7 +333,7 @@ when the command was issued."
 
 (provide 'emoji-labels)
 
-;;; uni-comment.el ends here\n")
+;;; emoji-labels.el ends here\n")
     (write-region (point-min) (point-max) file)))
 
 (defun emoji--base-name (name derivations)
