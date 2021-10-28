@@ -5,6 +5,9 @@
 ;; Author: Lars Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: fun
 
+;; Package-Requires: ((emacs "28.0"))
+;; Package-Version: 0.1
+
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software: you can redistribute it and/or modify
