@@ -118,7 +118,7 @@ when the command was issued."
                                         elem))
                 alist)
       ;; Output this block of emojis.
-      (insert (propertize (concat name " " mname)
+      (insert (propertize (concat name " > " mname)
                           'face 'emoji-list-header)
               "\n\n")
       (cl-loop for i from 1
@@ -374,7 +374,7 @@ when the command was issued."
                                 (if (equal (cadr entry) "Recent")
                                     (emoji--recent-transient end-function)
                                   (emoji--define-transient
-                                   (cons (concat mname " " (cadr entry))
+                                   (cons (concat mname " > " (cadr entry))
                                          (cddr entry))))))
             ;; Insert an emoji.
             (cl-loop for char in alist
