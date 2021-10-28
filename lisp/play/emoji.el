@@ -518,37 +518,40 @@ We prefer the earliest unique letter."
         (when-let ((name (emoji--name char)))
           (setf (gethash (downcase name) names) char))))
     ;; Use the list of names.
-    (let* ((name
-            (completing-read
-             "Insert emoji: "
-             (lambda (string pred action)
-	       (if (eq action 'metadata)
-		   (list 'metadata
-		         (cons
-                          'affixation-function
-                          ;; Add the glyphs to the start of the
-                          ;; displayed strings when TAB-ing.
-                          (lambda (strings)
-                            (mapcar
-                             (lambda (name)
-                               (list name
-                                     (concat (or (gethash name names) " ") "\t")
-                                     ""))
-                             strings))))
-	         (complete-with-action action names string pred)))))
-           (glyph (gethash name names))
-           (derived (gethash glyph emoji--derived)))
-      (if (not derived)
-          ;; Simple glyph with no derivations.
-          (progn
-            (emoji--add-recent glyph)
-            (insert glyph))
-        ;; Choose a derived version.
-        (let ((emoji--done-derived (make-hash-table :test #'equal)))
-          (setf (gethash glyph emoji--done-derived) t)
-          (funcall
-           (emoji--define-transient
-            (cons "Choose Emoji" (cons glyph derived)))))))))
+    (let ((name
+           (completing-read
+            "Insert emoji: "
+            (lambda (string pred action)
+	      (if (eq action 'metadata)
+		  (list 'metadata
+		        (cons
+                         'affixation-function
+                         ;; Add the glyphs to the start of the
+                         ;; displayed strings when TAB-ing.
+                         (lambda (strings)
+                           (mapcar
+                            (lambda (name)
+                              (list name
+                                    (concat (or (gethash name names) " ")
+                                            "\t")
+                                    ""))
+                            strings))))
+	        (complete-with-action action names string pred)))
+            nil t)))
+      (when (plusp (length name))
+        (let* ((glyph (gethash name names))
+               (derived (gethash glyph emoji--derived)))
+          (if (not derived)
+              ;; Simple glyph with no derivations.
+              (progn
+                (emoji--add-recent glyph)
+                (insert glyph))
+            ;; Choose a derived version.
+            (let ((emoji--done-derived (make-hash-table :test #'equal)))
+              (setf (gethash glyph emoji--done-derived) t)
+              (funcall
+               (emoji--define-transient
+                (cons "Choose Emoji" (cons glyph derived)))))))))))
 
 (provide 'emoji)
 
