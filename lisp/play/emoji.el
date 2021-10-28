@@ -185,137 +185,79 @@ when the command was issued."
   (when (or (not emoji--labels)
             force)
     (setq emoji--derived (make-hash-table :test #'equal))
-    (emoji--parse-labels)
-    (emoji--parse-normal-derived)
-    (emoji--parse-zwj-derived)
+    (emoji--parse-emoji-test)
     (emoji--define-transient)))
 
-(defun emoji--parse-labels ()
+(defun emoji--parse-emoji-test ()
   (setq emoji--labels nil)
   (with-temp-buffer
-    (insert-file-contents (expand-file-name "../admin/unidata/labels.txt"
+    (insert-file-contents (expand-file-name "../admin/unidata/emoji-test.txt"
                                             data-directory))
-    ;; The format is "[...] ; Main ; sub".
-    (while (re-search-forward "^\\[\\([^]]+\\)\\][ \t]*;[ \t]*\\(.*?\\)[ \t]*;[ \t]*\\(.*\\)$" nil t)
-      (let ((ranges (match-string 1))
-            (main (match-string 2))
-            (sub (match-string 3)))
-        (emoji--add-characters
-         (cl-loop with range-start
-                  and set
-                  and prev
-                  for char across ranges
-                  ;; a-z
-                  if (eql char ?-)
-                  do (setq range-start (1+ prev))
-                  else if (and set (eql char ?}))
-                  collect (prog1
-                              (apply #'string (cdr (nreverse set)))
-                            (setq set nil))
-                  ;; {set}
-                  else if (or (eql char ?{) set)
-                  do (push char set)
-                  else
-                  append (if range-start
-                             (prog1
-                                 (mapcar #'string
-                                         (number-sequence range-start char))
-                               (setq range-start nil))
-                           (list (string char)))
-                  do (setq prev char))
-         main sub)))
-    ;; Finally split up the too-long lists.
-    (emoji--split-long-lists emoji--labels)))
-
-(defun emoji--parse-zwj-derived ()
-  (with-temp-buffer
-    (let ((table (make-hash-table :test #'equal)))
-      (insert-file-contents (expand-file-name
-                             "../admin/unidata/emoji-zwj-sequences.txt"
-                             data-directory))
-      ;; The format is "[...] ; Main ; sub".
-      (while (re-search-forward "RGI_Emoji_ZWJ_Sequence[ \t]+;[ \t]+\\(.*?\\)[ \t]+#.*(\\([^)]+\\))"
-                                nil t)
-        (let* ((name (match-string 1))
-               (glyph (match-string 2))
-               (base (replace-regexp-in-string ":.*" "" name)))
-          (if (equal base name)
-              ;; New base.
-              (setf (gethash base table) (list glyph)
-                    (gethash glyph emoji--names) name)
-            ;; Add derived to the base.
-            (unless (gethash base table)
-              (let ((char (gethash (upcase base) (ucs-names))))
-                ;; FIXME -- These are things like "man lifting weights".
-                ;;(unless char (message "No %s in `ucs-names'" base))
-                (if char
-                    (setf (gethash base table) (list char))
-                  (let ((glyph-base (string (aref glyph 0))))
-                    ;; See if we need to add a VS-16 to it.
-                    (when (eq (aref char-script-table (elt glyph 0)) 'symbol)
-                      (setq glyph-base (concat glyph-base (string #xfe0f))))
-                    (setf (gethash glyph-base emoji--derived)
-                          (append (gethash glyph-base emoji--derived)
-                                  (list glyph)))))))
-            (setf (gethash base table)
-                  (nconc (gethash base table) (list glyph))))
-          ;; Map "woman police officer: light skin tone" to "police
-          ;; officer", too.
-          (setf (gethash (substring glyph 0 1) emoji--derived)
-                (append (gethash (substring glyph 0 1) emoji--derived)
-                        (list glyph)))))
+    (unless (re-search-forward "^# +group:" nil t)
+      (error "Can't find start of data"))
+    (beginning-of-line)
+    (setq emoji--names (make-hash-table :test #'equal))
+    (let ((derivations (make-hash-table :test #'equal))
+          (case-fold-search t)
+          group subgroup)
+      (while (not (eobp))
+        (cond
+         ((looking-at "# +group: \\(.*\\)")
+          (setq group (match-string 1)
+                subgroup nil))
+         ((looking-at "# +subgroup: \\(.*\\)")
+          (setq subgroup (match-string 1)))
+         ((looking-at
+           "\\([[:xdigit:] \t]+\\); *\\([^ \t]+\\)[ \t]+#.*?E[.0-9]+ +\\(.*\\)")
+          (let* ((codes (match-string 1))
+                 (qualification (match-string 2))
+                 (name (match-string 3))
+                 (base (replace-regexp-in-string ":.*" "" name))
+                 (glyph (mapconcat
+                         (lambda (code)
+                           (string (string-to-number code 16)))
+                         (split-string codes))))
+            ;; Special-case flags.
+            (when (equal base "flag")
+              (setq base name))
+            ;; Register all glyphs to that we can look up their names
+            ;; later.
+            (setf (gethash glyph emoji--names) name)
+            ;; For the interface, we only care about the fully qualified
+            ;; emojis.
+            (when (and (equal qualification "fully-qualified")
+                       ;; Ignore any emojis we don't have a font for.
+                       (not (symbolp (char-displayable-p (elt glyph 0)))))
+              (when (equal base name)
+                (emoji--add-characters (list glyph) group
+                                       (emoji--split-subgroup subgroup)))
+              (setf (gethash base derivations)
+                    (nconc (gethash base derivations) (list glyph)))))))
+        (forward-line 1))
       ;; Finally create the mapping from the base glyphs to derived ones.
+      (setq emoji--derived (make-hash-table :test #'equal))
       (maphash (lambda (_k v)
                  (setf (gethash (car v) emoji--derived)
                        (cdr v)))
-               table))))
+               derivations))))
 
-(defun emoji--parse-normal-derived ()
-  (with-temp-buffer
-    (let ((case-fold-search t))
-      (insert-file-contents (expand-file-name
-                             "../admin/unidata/emoji-sequences.txt"
-                             data-directory))
-      (unless (re-search-forward "^# RGI_Emoji_Modifier_Sequence" nil t)
-        (error "Can't find RGI_Emoji_Modifier_Sequence"))
-      (forward-line 2)
-      (while (looking-at "\\([[:xdigit:]]+\\) +\\([[:xdigit:]]+\\)")
-        (let ((parent (string (string-to-number (match-string 1) 16)))
-              (modifier (string (string-to-number (match-string 2) 16))))
-          ;; See if we need to add a VS-16 to it.
-          (when (eq (aref char-script-table (elt parent 0)) 'symbol)
-            (setq parent (concat parent (string #xfe0f))))
-          (setf (gethash parent emoji--derived)
-                (append (gethash parent emoji--derived)
-                        (list (concat parent modifier)))))
-        (forward-line 1)))))
+(defun emoji--split-subgroup (subgroup)
+  (let ((prefixes '("face" "hand" "person" "animal" "plant"
+                    "food" "place")))
+    (cond
+     ((string-match (concat "\\`" (regexp-opt prefixes) "-") subgroup)
+      ;; Split these subgroups into hierarchies.
+      (list (substring subgroup 0 (1- (match-end 0)))
+            (substring subgroup (match-end 0))))
+     ((equal subgroup "person")
+      (list "person" "age"))
+     (t
+      (list subgroup)))))
 
-(defun emoji--add-characters (chars main sub)
-  (let ((subs (if (member sub '( "cat-face" "monkey-face" "skin-tone"
-                                 "country-flag" "subdivision-flag"
-                                 "award-medal" "musical-instrument"
-                                 "book-paper" "other-object"
-                                 "transport-sign" "av-symbol"
-                                 "other-symbol"))
-                  (list sub)
-                (split-string sub "-")))
-        parent elem)
-    ;; This category is way too big; split it up.
-    (when (equal main "Smileys & People")
-      (setq main
-            (if (member (car subs) '("face" "cat-face" "monkey-face"))
-                "Smileys"
-              (capitalize (car subs))))
-      (when (and (equal (car subs) "person")
-                 (= (length subs) 1))
-        (setq subs (list "person" "age")))
-      (when (and (= (length subs) 1)
-                 (not (string-search "-" (car subs))))
-        (setq subs nil)))
-    (when (equal (car subs) "person")
-      (pop subs))
+(defun emoji--add-characters (chars main subs)
+  (let (parent elem)
     ;; Useless category.
-    (unless (member main '("Skin-Tone"))
+    (unless (member main '("Component"))
       (unless (setq parent (assoc main emoji--labels))
         (setq emoji--labels (append emoji--labels
                                     (list (setq parent (list main))))))
@@ -325,18 +267,7 @@ when the command was issued."
           (nconc parent (list (setq elem (list (car subs))))))
         (pop subs)
         (setq parent elem))
-      (nconc elem
-             (cl-loop for char in chars
-                      collect (if (and (= (length char) 1)
-                                       (eq (aref char-script-table (elt char 0))
-                                           'symbol))
-                                  ;; If itʼs not in the 'emoji script you need
-                                  ;; the VS-16. Itʼs an emoji, but it
-                                  ;; has Emoji_Presentation = No.
-                                  ;; Donʼt ask.  Add VARIATION
-                                  ;; SELECTOR-16.
-                                  (concat char (string #xfe0f))
-                                char))))))
+      (nconc elem chars))))
 
 (defun emoji--define-transient (&optional alist inhibit-derived
                                           end-function)
@@ -447,8 +378,9 @@ We prefer the earliest unique letter."
   (cl-loop with taken = (make-hash-table)
            for entry in alist
            for name = (car entry)
-           collect (cons (cl-loop for char across name
-                                  do (setq char (downcase char))
+           collect (cons (cl-loop for char across (concat
+                                                   (downcase name)
+                                                   (upcase name))
                                   while (gethash char taken)
                                   finally (progn
                                             (setf (gethash char taken) t)
@@ -459,7 +391,7 @@ We prefer the earliest unique letter."
   "Add example emojis to the name."
   (let ((name (concat (car entry) " "))
         (children (emoji--flatten entry))
-        (max 18))
+        (max 20))
     (cl-loop for i from 0 upto 20
              ;; Make the name at most 18 characters long, and choose
              ;; from all the children.
