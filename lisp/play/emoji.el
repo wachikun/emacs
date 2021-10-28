@@ -287,8 +287,8 @@ when the command was issued."
                       (emoji--add-character glyph "Emotion" nil)
                     (emoji--add-character glyph "Smileys"
                                           (emoji--split-subgroup subgroup))))
+                 ;; Don't modify the rest.
                  (t
-                  ;; Other groups.
                   (emoji--add-character
                    glyph group (emoji--split-subgroup subgroup)))))
               (setf (gethash base derivations)
