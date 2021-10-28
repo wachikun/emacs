@@ -183,7 +183,7 @@ when the command was issued."
           (error "Unknown name")
         (message "%s" name)))))
 
-(defun emoji--init (&optional force)
+(defun emoji--init (&optional force inhibit-adjust)
   ;; Remove debugging.
   (when (or (not emoji--labels)
             force)
@@ -194,7 +194,8 @@ when the command was issued."
     (unless emoji--labels
       (setq emoji--derived (make-hash-table :test #'equal))
       (emoji--parse-emoji-test))
-    (emoji--adjust-displayable (cons "Emoji" emoji--labels))))
+    (unless inhibit-adjust
+      (emoji--adjust-displayable (cons "Emoji" emoji--labels)))))
 
 (defun emoji--adjust-displayable (alist)
   "Remove glyphs we don't have fonts for."
@@ -271,7 +272,7 @@ when the command was issued."
   ;; Running from Makefile.
   (unless file
     (setq file (pop command-line-args-left)))
-  (emoji--init t)
+  (emoji--init t t)
   (with-temp-buffer
     (insert ";; Generated file -- do not edit.   -*- lexical-binding:t -*-
 ;; Copyright © 1991-2021 Unicode, Inc.
