@@ -114,13 +114,16 @@ when the command was issued."
         ;; Recurse.
         (mapcar (lambda (elem)
                   (emoji--list-generate (if name
-                                            (concat name " " mname)
+                                            (concat name " > " mname)
                                           mname)
                                         elem))
                 alist)
       ;; Output this block of emojis.
-      (insert (propertize (concat name " > " mname)
-                          'face 'emoji-list-header)
+      (insert (propertize
+               (if (zerop (length name))
+                   mname
+                 (concat name " > " mname))
+               'face 'emoji-list-header)
               "\n\n")
       (cl-loop for i from 1
                for char in alist
@@ -266,20 +269,28 @@ when the command was issued."
             (when (equal qualification "fully-qualified")
               (when (equal base name)
                 ;; "People & Body" is very large; split it up.
-                (if (equal group "People & Body")
-                    (if (or (string-match "\\`person" subgroup)
-                            (equal subgroup "family"))
-                        (emoji--add-character
-                         glyph "People"
-                         (if (equal subgroup "family")
-                             (list subgroup)
-                           ;; Avoid "Person person".
-                           (cdr (emoji--split-subgroup subgroup))))
+                (cond
+                 ((equal group "People & Body")
+                  (if (or (string-match "\\`person" subgroup)
+                          (equal subgroup "family"))
                       (emoji--add-character
-                       glyph "Body" (emoji--split-subgroup subgroup)))
+                       glyph "People"
+                       (if (equal subgroup "family")
+                           (list subgroup)
+                         ;; Avoid "Person person".
+                         (cdr (emoji--split-subgroup subgroup))))
+                    (emoji--add-character
+                     glyph "Body" (emoji--split-subgroup subgroup))))
+                 ;; "Smileys & Emotion" also seems sub-optimal.
+                 ((equal group "Smileys & Emotion")
+                  (if (equal subgroup "emotion")
+                      (emoji--add-character glyph "Emotion" nil)
+                    (emoji--add-character glyph "Smileys"
+                                          (emoji--split-subgroup subgroup))))
+                 (t
                   ;; Other groups.
                   (emoji--add-character
-                   glyph group (emoji--split-subgroup subgroup))))
+                   glyph group (emoji--split-subgroup subgroup)))))
               (setf (gethash base derivations)
                     (nconc (gethash base derivations) (list glyph)))))))
         (forward-line 1))
