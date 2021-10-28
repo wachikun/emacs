@@ -144,7 +144,10 @@ when the command was issued."
                        (or (null emoji--done-derived)
                            (not (gethash glyph emoji--done-derived)))
                        (gethash glyph emoji--derived))
+                  ;; If this emoji has derivations, use a special face
+                  ;; to tell the user.
                   'emoji-with-derivations
+                ;; Normal emoji.
                 'emoji)))
 
 (defun emoji--name (glyph)
