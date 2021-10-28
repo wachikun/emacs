@@ -126,28 +126,28 @@ when the command was issued."
                'face 'emoji-list-header)
               "\n\n")
       (cl-loop for i from 1
-               for char in alist
+               for glyph in alist
                do (insert
                    (propertize
-                    (emoji--fontify-char char)
-                    'emoji-glyph char
-                    'help-echo (emoji--name char)))
+                    (emoji--fontify-glyph glyph)
+                    'emoji-glyph glyph
+                    'help-echo (emoji--name glyph)))
                (when (zerop (mod i width))
                  (insert "\n")))
       (insert "\n\n"))))
 
-(defun emoji--fontify-char (char &optional inhibit-derived)
-  (propertize char 'face
+(defun emoji--fontify-glyph (glyph &optional inhibit-derived)
+  (propertize glyph 'face
               (if (and (not inhibit-derived)
                        (or (null emoji--done-derived)
-                           (not (gethash char emoji--done-derived)))
-                       (gethash char emoji--derived))
+                           (not (gethash glyph emoji--done-derived)))
+                       (gethash glyph emoji--derived))
                   'emoji-with-derivations
                 'emoji)))
 
-(defun emoji--name (char)
-  (or (gethash char emoji--names)
-      (get-char-code-property (aref char 0) 'name)))
+(defun emoji--name (glyph)
+  (or (gethash glyph emoji--names)
+      (get-char-code-property (aref glyph 0) 'name)))
 
 (defvar-keymap emoji-list-mode-map
   ["RET"] #'emoji-list-select
@@ -176,10 +176,12 @@ when the command was issued."
                    (switch-to-buffer buf)
                  (error "Buffer disappeared"))))))
       (if (not derived)
+          ;; Glyph without derivations.
           (progn
             (emoji--add-recent glyph)
             (funcall end-func)
             (insert glyph))
+        ;; Pop up a transient to choose between derivations.
         (let ((emoji--done-derived (make-hash-table :test #'equal)))
           (setf (gethash glyph emoji--done-derived) t)
           (funcall
@@ -198,7 +200,6 @@ when the command was issued."
         (message "%s" name)))))
 
 (defun emoji--init (&optional force inhibit-adjust)
-  ;; Remove debugging.
   (when (or (not emoji--labels)
             force)
     (unless force
@@ -225,8 +226,7 @@ when the command was issued."
                      (when-let ((name (emoji--name glyph)))
                        (setf (gethash (downcase name) emoji--all-bases) glyph))
                      ;; Say whether we should include in graphical displays.
-                     (not (symbolp (char-displayable-p
-                                    (elt glyph 0)))))
+                     (not (symbolp (char-displayable-p (elt glyph 0)))))
                    (cdr alist)))))
 
 (defun emoji--parse-emoji-test ()
@@ -273,23 +273,23 @@ when the command was issued."
                  ((equal group "People & Body")
                   (if (or (string-match "\\`person" subgroup)
                           (equal subgroup "family"))
-                      (emoji--add-character
+                      (emoji--add-glyph
                        glyph "People"
                        (if (equal subgroup "family")
                            (list subgroup)
                          ;; Avoid "Person person".
                          (cdr (emoji--split-subgroup subgroup))))
-                    (emoji--add-character
+                    (emoji--add-glyph
                      glyph "Body" (emoji--split-subgroup subgroup))))
                  ;; "Smileys & Emotion" also seems sub-optimal.
                  ((equal group "Smileys & Emotion")
                   (if (equal subgroup "emotion")
-                      (emoji--add-character glyph "Emotion" nil)
-                    (emoji--add-character glyph "Smileys"
-                                          (emoji--split-subgroup subgroup))))
+                      (emoji--add-glyph glyph "Emotion" nil)
+                    (emoji--add-glyph glyph "Smileys"
+                                      (emoji--split-subgroup subgroup))))
                  ;; Don't modify the rest.
                  (t
-                  (emoji--add-character
+                  (emoji--add-glyph
                    glyph group (emoji--split-subgroup subgroup)))))
               ;; Create mapping from base glyph name to name of
               ;; derived glyphs.
@@ -357,7 +357,7 @@ when the command was issued."
      (t
       (list subgroup)))))
 
-(defun emoji--add-character (char main subs)
+(defun emoji--add-glyph (glyph main subs)
   (let (parent elem)
     ;; Useless category.
     (unless (member main '("Component"))
@@ -370,7 +370,7 @@ when the command was issued."
           (nconc parent (list (setq elem (list (car subs))))))
         (pop subs)
         (setq parent elem))
-      (nconc elem (list char)))))
+      (nconc elem (list glyph)))))
 
 (defun emoji--define-transient (&optional alist inhibit-derived
                                           end-function)
@@ -398,31 +398,31 @@ when the command was issued."
                                    (cons (concat mname " > " (cadr entry))
                                          (cddr entry))))))
             ;; Insert an emoji.
-            (cl-loop for char in alist
+            (cl-loop for glyph in alist
                      for i in (append (number-sequence ?a ?z)
                                       (number-sequence ?A ?Z)
                                       (number-sequence ?0 ?9)
                                       (number-sequence ?! ?/))
-                     collect (let ((this-char char))
+                     collect (let ((this-glyph glyph))
                                (list
                                 (string i)
-                                (emoji--fontify-char
-                                 char inhibit-derived)
+                                (emoji--fontify-glyph
+                                 glyph inhibit-derived)
                                 (let ((derived
                                        (and (not inhibit-derived)
-                                            (not (gethash char
+                                            (not (gethash glyph
                                                           emoji--done-derived))
-                                            (gethash char emoji--derived))))
+                                            (gethash glyph emoji--derived))))
                                   (if derived
                                       ;; We have a derived glyph, so add
                                       ;; another level.
                                       (progn
-                                        (setf (gethash char
+                                        (setf (gethash glyph
                                                        emoji--done-derived)
                                               t)
                                         (emoji--define-transient
-                                         (cons (concat mname " " char)
-                                               (cons char derived))
+                                         (cons (concat mname " " glyph)
+                                               (cons glyph derived))
                                          t end-function))
                                     ;; Insert the emoji.
                                     (lambda ()
@@ -431,8 +431,8 @@ when the command was issued."
                                       ;; buffer.
                                       (when end-function
                                         (funcall end-function))
-                                      (emoji--add-recent this-char)
-                                      (insert this-char)))))))))
+                                      (emoji--add-recent this-glyph)
+                                      (insert this-glyph)))))))))
          (args (apply #'vector mname
                       (emoji--columnize layout
                                         (if has-subs 2 8)))))
@@ -460,10 +460,10 @@ when the command was issued."
     (funcall (emoji--define-transient
               (cons "Recent" emoji--recent) t end-function))))
 
-(defun emoji--add-recent (char)
-  "Add CHAR to the set of recently used emojis."
-  (setq emoji--recent (delete char emoji--recent))
-  (push char emoji--recent)
+(defun emoji--add-recent (glyph)
+  "Add GLYPH to the set of recently used emojis."
+  (setq emoji--recent (delete glyph emoji--recent))
+  (push glyph emoji--recent)
   ;; Shorten the list.
   (when-let ((tail (nthcdr 30 emoji--recent)))
     (setcdr tail nil)))
@@ -499,10 +499,10 @@ We prefer the earliest unique letter."
              ;; Choose from all the children.
              while (< (string-width name) max)
              do (cl-loop for child in children
-                         for char = (elt child i)
+                         for glyph = (elt child i)
                          while (< (string-width name) max)
-                         when char
-                         do (setq name (concat name char))))
+                         when glyph
+                         do (setq name (concat name glyph))))
     (if (= (length name) max)
         ;; Make an ellipsis signal that we've not exhausted the
         ;; possibilities.
@@ -541,14 +541,15 @@ We prefer the earliest unique letter."
 		(list 'metadata
 		      (cons
                        'affixation-function
-                       ;; Add the glyphs to the start of the
-                       ;; displayed strings when TAB-ing.
+                       ;; Add the glyphs to the start of the displayed
+                       ;; strings when TAB-ing.
                        (lambda (strings)
                          (mapcar
                           (lambda (name)
                             (list name
-                                  (concat (or (gethash name emoji--all-bases) " ")
-                                          "\t")
+                                  (concat
+                                   (or (gethash name emoji--all-bases) " ")
+                                   "\t")
                                   ""))
                           strings))))
 	      (complete-with-action action emoji--all-bases string pred)))
