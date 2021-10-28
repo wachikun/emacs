@@ -265,6 +265,7 @@ when the command was issued."
                          glyph "People"
                          (if (equal subgroup "family")
                              (list subgroup)
+                           ;; Avoid "Person person".
                            (cdr (emoji--split-subgroup subgroup))))
                       (emoji--add-character
                        glyph "Body" (emoji--split-subgroup subgroup)))
