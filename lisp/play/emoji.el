@@ -285,8 +285,11 @@ when the command was issued."
                  ((equal group "Smileys & Emotion")
                   (if (equal subgroup "emotion")
                       (emoji--add-glyph glyph "Emotion" nil)
-                    (emoji--add-glyph glyph "Smileys"
-                                      (emoji--split-subgroup subgroup))))
+                    (let ((subs (emoji--split-subgroup subgroup)))
+                      ;; Remove one level of menus in the face case.
+                      (when (equal (car subs) "face")
+                        (pop subs))
+                      (emoji--add-glyph glyph "Smileys" subs))))
                  ;; Don't modify the rest.
                  (t
                   (emoji--add-glyph
