@@ -110,6 +110,11 @@ when the command was issued."
         (emoji--list-generate nil (cons nil emoji--labels))
         (goto-char (point-min))))))
 
+;;;###autoload
+(defun emoji-composition-name (glyph)
+  (require 'emoji-labels)
+  (gethash glyph emoji--names))
+
 (defun emoji--list-generate (name alist)
   (let ((width (/ (window-width) 5))
         (mname (pop alist)))
