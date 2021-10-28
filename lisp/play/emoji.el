@@ -72,6 +72,16 @@ of a visual interface."
     (funcall (intern "emoji--command-Emoji"))))
 
 ;;;###autoload
+(defun emoji-recent ()
+  "Choose and insert a recently used emoji glyph."
+  (interactive "*")
+  (emoji--init)
+  (unless (fboundp 'emoji--command-Emoji)
+    (emoji--define-transient))
+  (funcall (emoji--define-transient
+            (cons "Recent" emoji--recent) t)))
+
+;;;###autoload
 (defun emoji-search ()
   "Choose and insert an emoji glyph by searching for an emoji name."
   (interactive "*")
@@ -191,7 +201,8 @@ when the command was issued."
       (ignore-errors (require 'emoji-labels)))
     ;; The require should define the variable, but in case the .el
     ;; file doesn't exist (yet), parse the file now.
-    (unless emoji--labels
+    (when (or force
+              (not emoji--labels))
       (setq emoji--derived (make-hash-table :test #'equal))
       (emoji--parse-emoji-test))
     (unless inhibit-adjust
@@ -248,10 +259,13 @@ when the command was issued."
               (when (equal base name)
                 ;; "People & Body" is very large; split it up.
                 (if (equal group "People & Body")
-                    (if (string-match "\\`person" subgroup)
+                    (if (or (string-match "\\`person" subgroup)
+                            (equal subgroup "family"))
                         (emoji--add-character
                          glyph "People"
-                         (cdr (emoji--split-subgroup subgroup)))
+                         (if (equal subgroup "family")
+                             (list subgroup)
+                           (cdr (emoji--split-subgroup subgroup))))
                       (emoji--add-character
                        glyph "Body" (emoji--split-subgroup subgroup)))
                   ;; Other groups.
