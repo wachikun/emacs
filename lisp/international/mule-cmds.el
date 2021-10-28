@@ -3263,6 +3263,7 @@ as names, not numbers."
               "e" #'emoji-insert
               "i" #'emoji-insert
               "s" #'emoji-search
+              "r" #'emoji-recent
               "l" #'emoji-list))
 
 ;;; mule-cmds.el ends here
