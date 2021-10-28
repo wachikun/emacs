@@ -538,7 +538,7 @@ We prefer the earliest unique letter."
                             strings))))
 	        (complete-with-action action names string pred)))
             nil t)))
-      (when (plusp (length name))
+      (when (cl-plusp (length name))
         (let* ((glyph (gethash name names))
                (derived (gethash glyph emoji--derived)))
           (if (not derived)
