@@ -112,6 +112,8 @@ when the command was issued."
 
 ;;;###autoload
 (defun emoji-composition-name (glyph)
+  "Say what the name of the composed grapheme cluster GLYPH is.
+If it's not known, this function returns nil."
   (require 'emoji-labels)
   (gethash glyph emoji--names))
 
