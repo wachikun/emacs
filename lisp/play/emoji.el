@@ -518,7 +518,24 @@ We prefer the earliest unique letter."
         (when-let ((name (emoji--name char)))
           (setf (gethash (downcase name) names) char))))
     ;; Use the list of names.
-    (let* ((name (completing-read "Emoji: " names nil t))
+    (let* ((name
+            (completing-read
+             "Insert emoji: "
+             (lambda (string pred action)
+	       (if (eq action 'metadata)
+		   (list 'metadata
+		         (cons
+                          'affixation-function
+                          ;; Add the glyphs to the start of the
+                          ;; displayed strings when TAB-ing.
+                          (lambda (strings)
+                            (mapcar
+                             (lambda (name)
+                               (list name
+                                     (concat (or (gethash name names) " ") "\t")
+                                     ""))
+                             strings))))
+	         (complete-with-action action names string pred)))))
            (glyph (gethash name names))
            (derived (gethash glyph emoji--derived)))
       (if (not derived)
