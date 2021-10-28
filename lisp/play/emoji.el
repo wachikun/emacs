@@ -212,7 +212,7 @@ when the command was issued."
           (let* ((codes (match-string 1))
                  (qualification (match-string 2))
                  (name (match-string 3))
-                 (base (replace-regexp-in-string ":.*" "" name))
+                 (base (emoji--base-name name derivations))
                  (glyph (mapconcat
                          (lambda (code)
                            (string (string-to-number code 16)))
@@ -229,8 +229,17 @@ when the command was issued."
                        ;; Ignore any emojis we don't have a font for.
                        (not (symbolp (char-displayable-p (elt glyph 0)))))
               (when (equal base name)
-                (emoji--add-characters (list glyph) group
-                                       (emoji--split-subgroup subgroup)))
+                ;; "People & Body" is very large; split it up.
+                (if (equal group "People & Body")
+                    (if (string-match "\\`person" subgroup)
+                        (emoji--add-character
+                         glyph "People"
+                         (cdr (emoji--split-subgroup subgroup)))
+                      (emoji--add-character
+                       glyph "Body" (emoji--split-subgroup subgroup)))
+                  ;; Other groups.
+                  (emoji--add-character
+                   glyph group (emoji--split-subgroup subgroup))))
               (setf (gethash base derivations)
                     (nconc (gethash base derivations) (list glyph)))))))
         (forward-line 1))
@@ -240,6 +249,17 @@ when the command was issued."
                  (setf (gethash (car v) emoji--derived)
                        (cdr v)))
                derivations))))
+
+(defun emoji--base-name (name derivations)
+  (let* ((base (replace-regexp-in-string ":.*" "" name))
+         (non-binary (replace-regexp-in-string "\\`\\(man\\|woman\\) " ""
+                                               base)))
+    ;; If we have (for instance) "person golfing", and we're adding
+    ;; "man golfing", make the latter a derivation of the former.
+    (if (or (gethash (concat "person " non-binary) derivations)
+            (gethash non-binary derivations))
+        non-binary
+      base)))
 
 (defun emoji--split-subgroup (subgroup)
   (let ((prefixes '("face" "hand" "person" "animal" "plant"
@@ -254,7 +274,7 @@ when the command was issued."
      (t
       (list subgroup)))))
 
-(defun emoji--add-characters (chars main subs)
+(defun emoji--add-character (char main subs)
   (let (parent elem)
     ;; Useless category.
     (unless (member main '("Component"))
@@ -267,7 +287,7 @@ when the command was issued."
           (nconc parent (list (setq elem (list (car subs))))))
         (pop subs)
         (setq parent elem))
-      (nconc elem chars))))
+      (nconc elem (list char)))))
 
 (defun emoji--define-transient (&optional alist inhibit-derived
                                           end-function)
