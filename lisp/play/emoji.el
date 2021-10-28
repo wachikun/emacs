@@ -291,7 +291,8 @@ when the command was issued."
                  (t
                   (emoji--add-character
                    glyph group (emoji--split-subgroup subgroup)))))
-              ;; Create mapping from base glyph to derived ones.
+              ;; Create mapping from base glyph name to name of
+              ;; derived glyphs.
               (setf (gethash base derivations)
                     (nconc (gethash base derivations) (list glyph)))))))
         (forward-line 1))
