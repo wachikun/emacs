@@ -5,7 +5,7 @@
 ;; Author: Lars Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: fun
 
-;; Package-Requires: ((emacs "28.0"))
+;; Package-Requires: ((emacs "28.0") (transient "0.3.7"))
 ;; Package-Version: 0.1
 
 ;; This file is part of GNU Emacs.
