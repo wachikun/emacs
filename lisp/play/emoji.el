@@ -24,7 +24,8 @@
 
 ;;; Code:
 
-(eval-when-compile (require 'cl-lib))
+(require 'cl-lib)
+(require 'cl-extra)
 (require 'transient)
 
 (defgroup emoji nil
@@ -66,6 +67,8 @@ of a visual interface."
   (emoji--init)
   (if text
       (emoji--choose-emoji)
+    (unless (fboundp 'emoji--command-Emoji)
+      (emoji--define-transient))
     (funcall (intern "emoji--command-Emoji"))))
 
 ;;;###autoload
@@ -186,10 +189,22 @@ when the command was issued."
             force)
     (unless force
       (ignore-errors (require 'emoji-labels)))
+    ;; The require should define the variable, but in case the .el
+    ;; file doesn't exist (yet), parse the file now.
     (unless emoji--labels
       (setq emoji--derived (make-hash-table :test #'equal))
       (emoji--parse-emoji-test))
-    (emoji--define-transient)))
+    (emoji--adjust-displayable (cons "Emoji" emoji--labels))))
+
+(defun emoji--adjust-displayable (alist)
+  "Remove glyphs we don't have fonts for."
+  (if (consp (caddr alist))
+      (dolist (child (cdr alist))
+        (emoji--adjust-displayable child))
+    (setcdr alist (seq-filter (lambda (glyph)
+                                (not (symbolp (char-displayable-p
+                                               (elt glyph 0)))))
+                              (cdr alist)))))
 
 (defun emoji--parse-emoji-test ()
   (setq emoji--labels nil)
@@ -228,9 +243,7 @@ when the command was issued."
             (setf (gethash glyph emoji--names) name)
             ;; For the interface, we only care about the fully qualified
             ;; emojis.
-            (when (and (equal qualification "fully-qualified")
-                       ;; Ignore any emojis we don't have a font for.
-                       (not (symbolp (char-displayable-p (elt glyph 0)))))
+            (when (equal qualification "fully-qualified")
               (when (equal base name)
                 ;; "People & Body" is very large; split it up.
                 (if (equal group "People & Body")
@@ -271,7 +284,7 @@ when the command was issued."
       (insert (format "(defconst %s '" var))
       (pp (symbol-value var) (current-buffer))
       (insert (format "\n) ;; End %s\n\n" var)))
-    (insert ";; Local Variables:
+    (insert ";; Local" " Variables:
 ;; coding: utf-8
 ;; version-control: never
 ;; no-byte-compile: t
