@@ -391,14 +391,13 @@ We prefer the earliest unique letter."
   "Add example emojis to the name."
   (let ((name (concat (car entry) " "))
         (children (emoji--flatten entry))
-        (max 20))
+        (max 30))
     (cl-loop for i from 0 upto 20
-             ;; Make the name at most 18 characters long, and choose
-             ;; from all the children.
-             while (< (length name) max)
+             ;; Choose from all the children.
+             while (< (string-width name) max)
              do (cl-loop for child in children
                          for char = (elt child i)
-                         while (< (length name) max)
+                         while (< (string-width name) max)
                          when char
                          do (setq name (concat name char))))
     (if (= (length name) max)
