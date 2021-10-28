@@ -125,15 +125,17 @@ when the command was issued."
                  (concat name " > " mname))
                'face 'emoji-list-header)
               "\n\n")
-      (cl-loop for i from 1
+      (cl-loop for i from 0
                for glyph in alist
-               do (insert
-                   (propertize
-                    (emoji--fontify-glyph glyph)
-                    'emoji-glyph glyph
-                    'help-echo (emoji--name glyph)))
-               (when (zerop (mod i width))
-                 (insert "\n")))
+               do
+               (when (and (cl-plusp i)
+                          (zerop (mod i width)))
+                 (insert "\n"))
+               (insert
+                (propertize
+                 (emoji--fontify-glyph glyph)
+                 'emoji-glyph glyph
+                 'help-echo (emoji--name glyph))))
       (insert "\n\n"))))
 
 (defun emoji--fontify-glyph (glyph &optional inhibit-derived)
