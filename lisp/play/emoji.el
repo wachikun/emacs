@@ -126,7 +126,10 @@ character) under point is."
                      t))
   (require 'emoji-labels)
   (if (not interactive)
+      ;; Don't return a name for non-compositions when called
+      ;; non-interactively.
       (gethash glyph emoji--names)
+    ;; Give a name for (pretty much) any glyph, including non-emojis.
     (let ((name (emoji--name glyph)))
       (if (not name)
           (message "No known name for `%s'" glyph)
