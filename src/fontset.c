@@ -657,11 +657,8 @@ fontset_find_font (Lisp_Object fontset, int c, struct face *face,
 	     the support of the character C.  That checking is costly,
 	     and even without the checking, the found font supports C
 	     in high possibility.  */
-	  if (! inhibit_loading_fonts)
-	    font_entity = font_find_for_lface (f, face->lface,
-					       FONT_DEF_SPEC (font_def), -1);
-	  else
-	    font_entity = Qnil;
+	  font_entity = font_find_for_lface (f, face->lface,
+					     FONT_DEF_SPEC (font_def), -1);
 	  if (NILP (font_entity))
 	    {
 	      /* Record that no font matches the spec.  */
@@ -2174,14 +2171,6 @@ displaying symbol and punctuation characters, disregarding the
 fontsets, if the default font can display the character.
 Set this to nil to make Emacs honor the fontsets instead.  */);
   use_default_font_for_symbols = 1;
-
-  DEFVAR_BOOL ("inhibit-loading-fonts", inhibit_loading_fonts,
-	       doc: /*
-If non-nil, inhibit loading fonts.
-This is not meant to be used generally, but only in specific
-circumstances for certain characters where attempting to load fonts is
-known to be inefficient and futile.  */);
-  inhibit_loading_fonts = 0;
 
   DEFVAR_LISP ("ignore-relative-composition", Vignore_relative_composition,
 	       doc: /*
