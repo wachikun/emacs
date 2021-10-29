@@ -269,15 +269,12 @@ character) under point is."
         ;; Remove glyphs we don't have in graphical displays.
         (if (let ((char (elt glyph 0)))
               (if emoji--font
-                  (elt (wrap emoji--font 0 1 (vector char)) 0)
+                  (font-get-glyphs emoji--font 0 1 (vector char))
                 (when-let ((font (car (internal-char-font nil char))))
                   (setq emoji--font font))))
             (setq alist (cdr alist))
           ;; Remove the element.
           (setcdr alist (cddr alist)))))))
-
-(defun wrap (a b c d)
-  (font-get-glyphs a b c d))
 
 (defun emoji--parse-emoji-test ()
   (setq emoji--labels nil)
