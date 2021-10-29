@@ -687,7 +687,7 @@ The character information includes:
               ,@(when-let ((composition-name
                             (and composition-string
                                  (eq (aref char-script-table char) 'emoji)
-                                 (emoji-composition-name composition-string))))
+                                 (emoji-describe composition-string))))
                   (list (list "composition name" composition-name)))
               ,@(let ((face
                        (if (not (or disp-vector composition))

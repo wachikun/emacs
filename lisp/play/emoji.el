@@ -111,11 +111,26 @@ when the command was issued."
         (goto-char (point-min))))))
 
 ;;;###autoload
-(defun emoji-composition-name (glyph)
+(defun emoji-describe (glyph &optional interactive)
   "Say what the name of the composed grapheme cluster GLYPH is.
-If it's not known, this function returns nil."
+If it's not known, this function returns nil.
+
+Interactively, it will message what the name of the emoji (or
+character) under point is."
+  (interactive (list (if (eobp)
+                         (error "No glyph under point")
+                       (let ((comp (find-composition (point) nil nil t)))
+                         (if comp
+                             (buffer-substring (car comp) (cadr comp))
+                           (buffer-substring (point) (1+ (point))))))
+                     t))
   (require 'emoji-labels)
-  (emoji--name glyph))
+  (if (not interactive)
+      (gethash glyph emoji--names)
+    (let ((name (emoji--name glyph)))
+      (if (not name)
+          (message "No known name for `%s'" glyph)
+        (message "The name of `%s' is \"%s\"" glyph name)))))
 
 (defun emoji--list-generate (name alist)
   (let ((width (/ (window-width) 5))
@@ -327,6 +342,14 @@ If it's not known, this function returns nil."
   (unless file
     (setq file (pop command-line-args-left)))
   (emoji--init t t)
+  ;; Weed out the elements that are empty.
+  (let ((glyphs nil))
+    (maphash (lambda (k v)
+               (unless v
+                 (push k glyphs)))
+             emoji--derived)
+    (dolist (glyph glyphs)
+      (remhash glyph emoji--derived)))
   (with-temp-buffer
     (insert ";; Generated file -- do not edit.   -*- lexical-binding:t -*-
 ;; Copyright © 1991-2021 Unicode, Inc.
