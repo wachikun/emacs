@@ -117,15 +117,14 @@ If it's not known, this function returns nil.
 
 Interactively, it will message what the name of the emoji (or
 character) under point is."
-  (interactive (list (if (eobp)
-                         (error "No glyph under point")
-                       (let ((comp (find-composition (point))))
-                         (if comp
-                             (buffer-substring-no-properties
-                              (car comp) (cadr comp))
-                           (buffer-substring-no-properties
-                            (point) (1+ (point))))))
-                     t))
+  (interactive
+   (list (if (eobp)
+             (error "No glyph under point")
+           (let ((comp (find-composition (point))))
+             (if comp
+                 (buffer-substring-no-properties (car comp) (cadr comp))
+               (buffer-substring-no-properties (point) (1+ (point))))))
+         t))
   (require 'emoji-labels)
   (if (not interactive)
       ;; Don't return a name for non-compositions when called
@@ -239,15 +238,16 @@ character) under point is."
             force)
     (unless force
       (ignore-errors (require 'emoji-labels)))
-    (setq emoji--all-bases (make-hash-table :test #'equal))
     ;; The require should define the variable, but in case the .el
     ;; file doesn't exist (yet), parse the file now.
     (when (or force
               (not emoji--labels))
       (setq emoji--derived (make-hash-table :test #'equal))
-      (emoji--parse-emoji-test))
-    (unless inhibit-adjust
-      (emoji--adjust-displayable (cons "Emoji" emoji--labels)))))
+      (emoji--parse-emoji-test)))
+  (when (and (not inhibit-adjust)
+             (not emoji--all-bases))
+    (setq emoji--all-bases (make-hash-table :test #'equal))
+    (emoji--adjust-displayable (cons "Emoji" emoji--labels))))
 
 (defun emoji--adjust-displayable (alist)
   "Remove glyphs we don't have fonts for."
