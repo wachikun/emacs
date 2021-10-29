@@ -119,7 +119,7 @@ Interactively, it will message what the name of the emoji (or
 character) under point is."
   (interactive (list (if (eobp)
                          (error "No glyph under point")
-                       (let ((comp (find-composition (point) nil nil t)))
+                       (let ((comp (find-composition (point))))
                          (if comp
                              (buffer-substring-no-properties
                               (car comp) (cadr comp))
