@@ -115,7 +115,7 @@ when the command was issued."
   "Say what the name of the composed grapheme cluster GLYPH is.
 If it's not known, this function returns nil."
   (require 'emoji-labels)
-  (gethash glyph emoji--names))
+  (emoji--name glyph))
 
 (defun emoji--list-generate (name alist)
   (let ((width (/ (window-width) 5))
