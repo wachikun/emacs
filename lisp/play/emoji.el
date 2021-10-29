@@ -249,20 +249,35 @@ character) under point is."
     (setq emoji--all-bases (make-hash-table :test #'equal))
     (emoji--adjust-displayable (cons "Emoji" emoji--labels))))
 
+(defvar emoji--font nil)
+
 (defun emoji--adjust-displayable (alist)
   "Remove glyphs we don't have fonts for."
+  (let ((emoji--font nil))
+    (emoji--adjust-displayable-1 alist)))
+
+(defun emoji--adjust-displayable-1 (alist)
   (if (consp (caddr alist))
       (dolist (child (cdr alist))
-        (emoji--adjust-displayable child))
-    (setcdr alist (seq-filter
-                   (lambda (glyph)
-                     ;; Store all the emojis for later retrieval by
-                     ;; the search feature.
-                     (when-let ((name (emoji--name glyph)))
-                       (setf (gethash (downcase name) emoji--all-bases) glyph))
-                     ;; Say whether we should include in graphical displays.
-                     (not (symbolp (char-displayable-p (elt glyph 0)))))
-                   (cdr alist)))))
+        (emoji--adjust-displayable-1 child))
+    (while (cdr alist)
+      (let ((glyph (cadr alist)))
+        ;; Store all the emojis for later retrieval by
+        ;; the search feature.
+        (when-let ((name (emoji--name glyph)))
+          (setf (gethash (downcase name) emoji--all-bases) glyph))
+        ;; Remove glyphs we don't have in graphical displays.
+        (if (let ((char (elt glyph 0)))
+              (if emoji--font
+                  (elt (wrap emoji--font 0 1 (vector char)) 0)
+                (when-let ((font (car (internal-char-font nil char))))
+                  (setq emoji--font font))))
+            (setq alist (cdr alist))
+          ;; Remove the element.
+          (setcdr alist (cddr alist)))))))
+
+(defun wrap (a b c d)
+  (font-get-glyphs a b c d))
 
 (defun emoji--parse-emoji-test ()
   (setq emoji--labels nil)
