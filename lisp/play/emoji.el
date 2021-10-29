@@ -121,8 +121,10 @@ character) under point is."
                          (error "No glyph under point")
                        (let ((comp (find-composition (point) nil nil t)))
                          (if comp
-                             (buffer-substring (car comp) (cadr comp))
-                           (buffer-substring (point) (1+ (point))))))
+                             (buffer-substring-no-properties
+                              (car comp) (cadr comp))
+                           (buffer-substring-no-properties
+                            (point) (1+ (point))))))
                      t))
   (require 'emoji-labels)
   (if (not interactive)
@@ -132,8 +134,8 @@ character) under point is."
     ;; Give a name for (pretty much) any glyph, including non-emojis.
     (let ((name (emoji--name glyph)))
       (if (not name)
-          (message "No known name for `%s'" glyph)
-        (message "The name of `%s' is \"%s\"" glyph name)))))
+          (message "No known name for \"%s\"" glyph)
+        (message "The name of \"%s\" is \"%s\"" glyph name)))))
 
 (defun emoji--list-generate (name alist)
   (let ((width (/ (window-width) 5))
