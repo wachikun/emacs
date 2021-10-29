@@ -167,6 +167,35 @@ character) under point is."
                  'help-echo (emoji--name glyph))))
       (insert "\n\n"))))
 
+(defun emoji--pick-read-affixation (names)
+  (mapcar
+   (lambda (name)
+     (list name (char-to-string
+                 (char-from-name
+                  (concat "EMOJI MODIFIER FITZPATRICK TYPE-" name)))))
+   names))
+
+(defun emoji--pick-read-tone (prompt initial-input history)
+  (let* ((names '("1-2" "3" "4" "5" "6"))
+         (str (completing-read
+               prompt
+               (lambda (string pred action)
+                 (if (eq action 'metadata)
+                     `(metadata
+		       (affixation-function . ,'emoji--pick-read-affixation))
+                   (complete-with-action action names string pred)))
+               nil t initial-input history)))
+    (char-to-string
+     (char-from-name (concat "EMOJI MODIFIER FITZPATRICK TYPE-" str)))))
+
+(transient-define-infix emoji-pick:--skin-tone ()
+  :description "Skin tone"
+  :class 'transient-option
+  :shortarg "-s"
+  :argument ""
+  :prompt "Skin tone: "
+  :reader #'emoji--pick-read-tone)
+
 (defun emoji--fontify-glyph (glyph &optional inhibit-derived)
   (propertize glyph 'face
               (if (and (not inhibit-derived)
@@ -254,15 +283,21 @@ character) under point is."
   (if (consp (caddr alist))
       (dolist (child (cdr alist))
         (emoji--adjust-displayable child))
-    (setcdr alist (seq-filter
-                   (lambda (glyph)
-                     ;; Store all the emojis for later retrieval by
-                     ;; the search feature.
-                     (when-let ((name (emoji--name glyph)))
-                       (setf (gethash (downcase name) emoji--all-bases) glyph))
-                     ;; Say whether we should include in graphical displays.
-                     (not (symbolp (char-displayable-p (elt glyph 0)))))
-                   (cdr alist)))))
+    (let ((inhibit-loading-fonts nil))
+      (setcdr
+       alist
+       (seq-filter
+        (lambda (glyph)
+          ;; Store all the emojis for later retrieval by
+          ;; the search feature.
+          (when-let ((name (emoji--name glyph)))
+            (setf (gethash (downcase name) emoji--all-bases) glyph))
+          ;; Say whether we should include in graphical displays.
+          (let ((symp (symbolp (char-displayable-p (elt glyph 0)))))
+            (unless symp
+              (setq inhibit-loading-fonts t))
+            (not symp)))
+        (cdr alist))))))
 
 (defun emoji--parse-emoji-test ()
   (setq emoji--labels nil)
@@ -433,16 +468,25 @@ character) under point is."
               (cl-loop for entry in
                        (emoji--compute-prefix
                         (if (equal mname "Emoji")
-                            (cons (list "Recent") alist)
+                            (nconc
+                             (list (list "Recent")
+                                   ;;(list "Variations")
+                                   )
+                             alist)
                           alist))
                        collect (list
                                 (car entry)
                                 (emoji--compute-name (cdr entry))
-                                (if (equal (cadr entry) "Recent")
-                                    (emoji--recent-transient end-function)
+                                (cond
+                                 ((equal (cadr entry) "Recent")
+                                  (emoji--recent-transient end-function))
+                                 ((equal (cadr entry) "Variations")
+                                  ;;(emoji-pick:--skin-tone)
+                                  )
+                                 (t
                                   (emoji--define-transient
                                    (cons (concat mname " > " (cadr entry))
-                                         (cddr entry))))))
+                                         (cddr entry)))))))
             ;; Insert an emoji.
             (cl-loop for glyph in alist
                      for i in (append (number-sequence ?a ?z)
