@@ -269,7 +269,7 @@ character) under point is."
         ;; Remove glyphs we don't have in graphical displays.
         (if (let ((char (elt glyph 0)))
               (if emoji--font
-                  (font-get-glyphs emoji--font 0 1 (vector char))
+                  (font-has-char-p emoji--font char)
                 (when-let ((font (car (internal-char-font nil char))))
                   (setq emoji--font font))))
             (setq alist (cdr alist))
@@ -550,17 +550,19 @@ We prefer the earliest unique letter."
 
 (defun emoji--compute-name (entry)
   "Add example emojis to the name."
-  (let ((name (concat (car entry) " "))
-        (children (emoji--flatten entry))
-        (max 30))
+  (let* ((name (concat (car entry) " "))
+         (children (emoji--flatten entry))
+         (length (length name))
+         (max 30))
     (cl-loop for i from 0 upto 20
              ;; Choose from all the children.
-             while (< (string-width name) max)
+             while (< length max)
              do (cl-loop for child in children
                          for glyph = (elt child i)
-                         while (< (string-width name) max)
+                         while (< length max)
                          when glyph
-                         do (setq name (concat name glyph))))
+                         do (setq name (concat name glyph)
+                                  length (+ length 2))))
     (if (= (length name) max)
         ;; Make an ellipsis signal that we've not exhausted the
         ;; possibilities.
