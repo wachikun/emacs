@@ -141,7 +141,7 @@ customize the variable `user-directory-warning'."
 (cl-defmethod user-directory ((_type (eql 'cache)))
   "Return the user cache directory.
 The cache directory contains non-essential user data that is not
-necessarily important to save.  "
+necessarily important to save."
   (cons (expand-file-name "emacs" (xdg-cache-home))
         '("~/.cache/emacs")))
 
@@ -149,8 +149,8 @@ necessarily important to save.  "
   "Return the user configuration file directory.
 The configuration file directory contains any user-specific
 configuration."
-  (cons (expand-file-name "emacs" (xdg-config-home))
-        '("~/.config/emacs")))
+  ;; We rely startup.el to find and set this.
+  (list user-emacs-directory))
 
 (cl-defmethod user-directory ((_type (eql 'data)))
   "Return the user data directory.
