@@ -98,11 +98,15 @@
 
 (ert-deftest user-directory-tests-user-file/prefer-existing-in-emacs-dir ()
   (with-user-directory-test
-    (ert-with-temp-file conf
-      (should-not (string-match "\\`foo-bar-baz\\'"
-                                (file-name-base
-                                 (user-file 'downloads "foo-bar-baz"
-                                            conf)))))))
+    (ert-with-temp-directory dir
+      (let ((user-emacs-directory dir)
+            (file (expand-file-name "baz" dir)))
+        (with-temp-file file
+          (insert "some data"))
+        (should-not (string-match "\\`foobar123\\'"
+                                  (file-name-base
+                                   (user-file 'cache "foobar123"
+                                              "baz"))))))))
 
 (ert-deftest user-directory-tests-user-file/name-missing ()
   (with-user-directory-test
