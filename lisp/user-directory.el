@@ -107,7 +107,7 @@ Return value is (DIR . ERRTYPES)."
                       (or (and (file-accessible-directory-p dir)
                                (throw 'found (cons dir errtypes)))
                           (push "access" errtypes))
-                    (with-file-modes #x700
+                    (with-file-modes #o700
                       (condition-case nil
                           (progn (make-directory dir t)
                                  (setq errtypes nil)

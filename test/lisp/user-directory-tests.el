@@ -66,7 +66,8 @@
   (with-user-directory-test
     (delete-directory dir)
     (user-directory 'downloads)
-    (should (file-exists-p dir))))
+    (should (file-exists-p dir))
+    (should (eq (file-modes dir) #o700))))
 
 (ert-deftest user-directory/alist-entry-overrides ()
   (with-user-directory-test
@@ -139,6 +140,7 @@
         (delete-directory dir)
         (user-file 'downloads "foo/bar")
         (should (file-exists-p dir))
+        (should (eq (file-modes dir) #o700))
         ;; Sanity checks.
         (should-not (file-exists-p (expand-file-name "foo" dir)))
         (should-not (file-exists-p (expand-file-name "foo/bar")))))))
@@ -155,7 +157,8 @@
   (ert-with-temp-directory dir
     (let ((new-dir (expand-file-name "foo" dir)))
       (user-directory--find-or-create-dir (list new-dir))
-      (should (file-directory-p new-dir)))))
+      (should (file-directory-p new-dir))
+      (should (eq (file-modes new-dir) #o700)))))
 
 (ert-deftest user-directory-tests--find-or-create-dir/skips-inacessible ()
   (ert-with-temp-directory dir1
