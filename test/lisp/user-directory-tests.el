@@ -95,6 +95,14 @@
                           (file-name-base
                            (user-file 'downloads "foo"))))))
 
+(ert-deftest user-directory-tests-user-file/prefer-existing-in-emacs-dir ()
+  (with-user-directory-test
+    (ert-with-temp-file conf
+      (should-not (string-match "\\`foo-bar-baz\\'"
+                                (file-name-base
+                                 (user-file 'downloads "foo-bar-baz"
+                                            conf)))))))
+
 (ert-deftest user-directory-tests-user-file/name-missing ()
   (with-user-directory-test
     (should (string-match "\\`foo\\'"

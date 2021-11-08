@@ -227,6 +227,21 @@ of recently opened files probably belong here."
 
 ;;;; user-file
 
+(defun user-directory--find-old-name (old-name)
+  "Create a list of readable file names based on OLD-NAME.
+OLD-NAME is a string or a list, as in `user-file'.
+
+This is an internal helper function to `user-file'."
+  (catch 'found
+    (dolist (name (or (and (listp old-name) old-name)
+                      (list old-name)))
+      (mapcar (lambda (name)
+                (when (file-readable-p name)
+                  (throw 'found name)))
+              (list old-name
+                    (expand-file-name old-name
+                                      user-emacs-directory))))))
+
 ;;;###autoload
 (defun user-file (type name &optional old-name)
   "Return an absolute per-user Emacs-specific file name.
@@ -249,14 +264,12 @@ you will need to add an explicit \"~/\" at the beginning of the
 string, when converting calls from that function to this one."
   (convert-standard-filename
    (let* ((dir (user-directory type))
-          (new-name (abbreviate-file-name (expand-file-name name dir))))
-     (or (and old-name
-              (not (file-readable-p new-name))
-              (or (and (listp old-name)
-                       (car (seq-filter #'file-readable-p old-name)))
-                  (and (file-readable-p old-name)
-                       old-name)))
-         new-name))))
+          (new-name (expand-file-name name dir)))
+     (abbreviate-file-name
+      (or (and old-name
+               (not (file-readable-p new-name))
+               (user-directory--find-old-name old-name))
+          new-name)))))
 
 (provide 'user-directory)
 
