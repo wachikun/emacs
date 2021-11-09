@@ -227,14 +227,13 @@ of recently opened files probably belong here."
 
 ;;;; user-file
 
-(defun user-directory--find-old-name (old-name)
-  "Create a list of readable file names based on OLD-NAME.
+(defun user-directory--find-old-name (old-names)
+  "Create a list of readable file names based on OLD-NAMES.
 OLD-NAME is a string or a list, as in `user-file'.
 
 This is an internal helper function to `user-file'."
   (catch 'found
-    (dolist (name (or (and (listp old-name) old-name)
-                      (list old-name)))
+    (dolist (old-name old-names)
       (mapcar (lambda (name)
                 (when (file-readable-p name)
                   (throw 'found name)))
@@ -243,32 +242,37 @@ This is an internal helper function to `user-file'."
                                       user-emacs-directory))))))
 
 ;;;###autoload
-(defun user-file (type name &optional old-name)
-  "Return an absolute per-user Emacs-specific file name.
+(defun user-file (type name &rest old-names)
+  "Return an absolute per-user Emacs-specific file name for NAME in directory TYPE.
 TYPE should be a symbol and is passed as an argument to
 `user-directory'.
 
-1. If NEW-NAME exists in the directory for TYPE, return it.
+Optional argument OLD-NAMES is a list of file names, either
+absolute or relative (see below).
 
-2. Else if OLD-NAME is non-nil and OLD-NAME exists, return OLD-NAME.
-   OLD-NAME is an absolute file name or a list of absolute file
-   names.  If it is a list, try each of the names in the list.
+1. If NAME exists in the user directory for TYPE, return it.
 
-3. Else return NEW-NAME in the directory for TYPE, creating the
-   directory if it does not exist.  (Only the top level directory
-   for that type will be created, as with `user-directory'.)
+2. Try each file name in OLD-NAMES in order, and return the first
+   one that exists and is readable.  If a file name is relative,
+   first look for it in the user directory for TYPE and then in
+   `user-emacs-directory'.
 
-Note: in contrast with `locate-user-emacs-file', OLD-NAME is not
-a relative but an absolute file name.  This typically means that
-you will need to add an explicit \"~/\" at the beginning of the
-string, when converting calls from that function to this one."
+3. If no file could be found, return NEW-NAME in the directory
+   for TYPE, creating the top level TYPE directory if it does not
+   exist (just as if calling `user-directory' directly).
+
+Note: in contrast to the OLD-NAME argument to
+`locate-user-emacs-file', file names in OLD-NAMES are not
+relative to the user home directory.  When converting a call to
+that function to use this one, add \"~/\" at the beginning of the
+third argument."
   (convert-standard-filename
    (let* ((dir (user-directory type))
           (new-name (expand-file-name name dir)))
      (abbreviate-file-name
-      (or (and old-name
+      (or (and old-names
                (not (file-readable-p new-name))
-               (user-directory--find-old-name old-name))
+               (user-directory--find-old-name old-names))
           new-name)))))
 
 (provide 'user-directory)
