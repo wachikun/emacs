@@ -91,53 +91,50 @@
 ;;;; user-file
 
 (ert-deftest user-directory-tests-user-file/name-exists ()
+  "Return new name if it exists."
   (with-user-directory-test
-    (should (string-match "\\`foo\\'"
-                          (file-name-base
-                           (user-file 'downloads "foo"))))))
-
-(ert-deftest user-directory-tests-user-file/prefer-existing-in-emacs-dir ()
-  (with-user-directory-test
-    (ert-with-temp-directory dir
-      (let ((user-emacs-directory dir)
-            (file (expand-file-name "baz" dir)))
-        (with-temp-file file
-          (insert "some data"))
-        (should-not (string-match "\\`foobar123\\'"
-                                  (file-name-base
-                                   (user-file 'cache "foobar123"
-                                              "baz"))))))))
+    (should (equal "foo" (file-name-base
+                          (user-file 'downloads "foo"))))))
 
 (ert-deftest user-directory-tests-user-file/name-missing ()
+  "Return new name if it is missing."
   (with-user-directory-test
-    (should (string-match "\\`foo\\'"
-                          (file-name-base
-                           (user-file 'downloads "foo"))))))
+    (should (equal "foo" (file-name-base
+                          (user-file 'downloads "foo"))))))
+
+(ert-deftest user-directory-tests-user-file/name-missing+old-exists ()
+  "Return old name if new is missing."
+  (with-user-directory-test
+    (ert-with-temp-file old-name
+      (should (equal old-name (user-file 'downloads "foo" old-name))))))
 
 (ert-deftest user-directory-tests-user-file/old-missing ()
+  "Return new name if old is missing."
   (with-user-directory-test
     (let ((old-name (make-temp-name "/tmp/bar")))
-      (should (string-match "\\`foo\\'"
-                            (file-name-base
-                             (user-file 'downloads "foo" old-name)))))))
+      (should (equal "foo" (file-name-base
+                            (user-file 'downloads "foo" old-name)))))))
 
-(ert-deftest user-directory-tests-user-file/old-exists ()
+(ert-deftest user-directory-tests-user-file/name-exists+old-exists ()
+  "Return new name if old and new exists."
   (with-user-directory-test
     (ert-with-temp-file old-name
-      (should (file-equal-p (user-file 'downloads "foo" old-name)
-                            old-name)))))
+      (make-empty-file (expand-file-name "new-name"
+                                         (user-directory 'downloads)))
+      (should (equal "new-name" (file-name-base
+                                 (user-file 'downloads "new-name" old-name)))))))
 
-(ert-deftest user-directory-tests-user-file/old-and-new-exists ()
+(ert-deftest user-directory-tests-user-file/old-in-user-emacs-directory ()
+  "Find old in `user-emacs-directory'."
   (with-user-directory-test
-    (ert-with-temp-file old-name
-      (with-temp-file (expand-file-name "new-name"
-                                        (user-directory 'downloads))
-        (insert "foo"))
-      (should (string-match "new-name"
-                            (user-file 'downloads "new-name" old-name))))))
+    (ert-with-temp-directory user-emacs-directory
+      (make-empty-file (expand-file-name "baz" user-emacs-directory))
+      (should (equal "baz" (file-name-base
+                            (user-file 'cache "foobar123" "baz")))))))
 
 (ert-deftest user-directory-tests-user-file/creates-dir-if-missing ()
-  ;; Already tested for `user-directory' but let's make sure.
+  "Create the TYPE directory if it is missing.
+Already tested for `user-directory' but let's make sure."
   (with-user-directory-test
     (ert-with-temp-directory dir
       (let ((user-directory-alist `((downloads . ,dir))))
