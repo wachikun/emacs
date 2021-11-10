@@ -23,6 +23,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include "lisp.h"
 #ifdef HAVE_X_WINDOWS
+#include "frame.h"
 #include "xterm.h"
 #else /* Otherwise, Haiku */
 #include "haikuterm.h"
@@ -41,6 +42,15 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #define GREEN_FROM_ULONG(color)	(((color) >> 8) & 0xff)
 #define BLUE_FROM_ULONG(color)	((color) & 0xff)
 #endif
+
+extern int bgexi_p (int bgexid);
+extern int bgexi_fast_p (void);
+extern int bgexi_get_dynamic_color_flag (int bgexid);
+extern int bgexi_get_enable_bgexid (struct window *window);
+extern int bgexi_clear_special_trigger_p (void);
+extern int bgexi_fill_rectangle (GC gc, struct window *window,
+                                 int x, int y, int w, int h, int *rgba);
+extern int bgexi_overstrike_p (void);
 
 #define METRICS_NCOLS_PER_ROW	(128)
 
@@ -541,6 +551,99 @@ ftcrfont_draw (struct glyph_string *s,
   BView_cr_dump_clipping (FRAME_HAIKU_VIEW (f), cr);
 #endif
 
+  if (bgexi_p (-1) &&
+      !bgexi_overstrike_p())
+    {
+      XGCValues xgcv;
+      int draw_rect_p = 0;
+      int fill_rect_p = 0;
+      XGetGCValues (FRAME_X_DISPLAY (s->f), s->gc, GCBackground, &xgcv);
+      if (bgexi_fast_p () && (bgexi_get_enable_bgexid (s->w) == 0))
+        {
+          if (bgexi_get_dynamic_color_flag (0))
+            {
+              if (FRAME_BACKGROUND_PIXEL (s->f) == xgcv.background)
+                {
+                  bgexi_fill_rectangle (s->gc, s->w, x, y - FONT_BASE (face->font), s->width, FONT_HEIGHT (face->font), 0);
+                }
+              else
+                {
+                  fill_rect_p = !0;
+                }
+            }
+          else
+            {
+              if (FRAME_BACKGROUND_PIXEL (s->f) == xgcv.background)
+                {
+                  bgexi_fill_rectangle (s->gc, s->w, x, y - FONT_BASE (face->font), s->width, FONT_HEIGHT (face->font), 0);
+                }
+              else
+                {
+                  fill_rect_p = !0;
+                }
+            }
+        }
+      else
+        {
+          if (FRAME_BACKGROUND_PIXEL (s->f) == xgcv.background)
+            {
+              if (bgexi_fill_rectangle (s->gc, s->w, x, y - FONT_BASE (face->font), s->width, FONT_HEIGHT (face->font), 0))
+                {
+                  draw_rect_p = !0;
+                }
+              else
+                {
+                }
+            }
+          else
+            {
+              fill_rect_p = !0;
+            }
+        }
+      if (fill_rect_p)
+        {
+          int rgba[4];
+          XColor xcolor;
+          xcolor.pixel = xgcv.background;
+          XQueryColor (FRAME_X_DISPLAY (s->f), FRAME_X_COLORMAP (s->f), &xcolor);
+          rgba[0] = xcolor.red;
+          rgba[1] = xcolor.green;
+          rgba[2] = xcolor.blue;
+          rgba[3] = 0;
+          if (s->face->box_horizontal_line_width == 0)
+            {
+              if ((xgcv.background == 0) ||
+                  bgexi_fill_rectangle (s->gc, s->w, x, y - FONT_BASE (face->font), s->width, FONT_HEIGHT (face->font), rgba))
+                {
+                  draw_rect_p = !0;
+                }
+              else
+                {
+                }
+            }
+        }
+      if (draw_rect_p && with_background)
+	{
+#ifndef USE_BE_CAIRO
+	  x_set_cr_source_with_gc_background (f, s->gc);
+	  s->background_filled_p = 1;
+#else
+	  struct face *face = s->face;
+
+	  uint32_t col = s->hl == DRAW_CURSOR ?
+	    FRAME_CURSOR_COLOR (s->f).pixel : face->background;
+
+	  cairo_set_source_rgb (cr, RED_FROM_ULONG (col) / 255.0,
+				GREEN_FROM_ULONG (col) / 255.0,
+				BLUE_FROM_ULONG (col) / 255.0);
+#endif
+	  cairo_rectangle (cr, x, y - FONT_BASE (face->font),
+			   s->width, FONT_HEIGHT (face->font));
+	  cairo_fill (cr);
+	}
+    }
+  else
+    {
   if (with_background)
     {
 #ifndef USE_BE_CAIRO
@@ -559,6 +662,7 @@ ftcrfont_draw (struct glyph_string *s,
       cairo_rectangle (cr, x, y - FONT_BASE (face->font),
 		       s->width, FONT_HEIGHT (face->font));
       cairo_fill (cr);
+    }
     }
 
   glyphs = alloca (sizeof (cairo_glyph_t) * len);

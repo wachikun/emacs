@@ -441,6 +441,9 @@ struct window
     /* True if it needs to be redisplayed.  */
     bool_bf redisplay : 1;
 
+    /* BGEX flag. */
+    bool_bf bgexi_redisplay_p : 1;
+
     /* True if auto hscrolling is currently suspended in this
        window.  */
     bool_bf suspend_auto_hscroll : 1;

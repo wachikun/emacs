@@ -4042,7 +4042,7 @@ xg_update_scrollbar_pos (struct frame *f,
           /* Clear under old scroll bar position.  */
           oldw += (scale - 1) * oldw;
 	  oldx -= (scale - 1) * oldw;
-          x_clear_area (f, oldx, oldy, oldw, oldh);
+          x_clear_area (0, f, oldx, oldy, oldw, oldh);
         }
 
       if (!hidden)
@@ -4119,7 +4119,7 @@ xg_update_horizontal_scrollbar_pos (struct frame *f,
         }
       if (oldx != -1 && oldw > 0 && oldh > 0)
         /* Clear under old scroll bar position.  */
-        x_clear_area (f, oldx, oldy, oldw, oldh);
+        x_clear_area (0, f, oldx, oldy, oldw, oldh);
 
       /* GTK does not redraw until the main loop is entered again, but
          if there are no X events pending we will not enter it.  So we sync

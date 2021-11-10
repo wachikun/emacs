@@ -115,6 +115,8 @@ static int window_scroll_pixel_based_preserve_y;
 /* Same for window_scroll_line_based.  */
 static EMACS_INT window_scroll_preserve_hpos;
 static EMACS_INT window_scroll_preserve_vpos;
+
+extern void bgexi_redraw_all (void);
 
 static void
 CHECK_WINDOW_CONFIGURATION (Lisp_Object x)
@@ -4015,6 +4017,8 @@ set_window_buffer (Lisp_Object window, Lisp_Object buffer,
   ptrdiff_t count = SPECPDL_INDEX ();
   bool samebuf = EQ (buffer, w->contents);
 
+  w->bgexi_redisplay_p = 1;
+
   wset_buffer (w, buffer);
 
   if (EQ (window, selected_window))
@@ -6913,6 +6917,8 @@ the return value is nil.  Otherwise the value is t.  */)
   struct frame *f;
   ptrdiff_t old_point = -1;
   USE_SAFE_ALLOCA;
+
+  bgexi_redraw_all ();
 
   CHECK_WINDOW_CONFIGURATION (configuration);
 

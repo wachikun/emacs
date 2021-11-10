@@ -45,6 +45,15 @@ struct xfont_info
 
 /* Prototypes of support functions.  */
 
+extern int bgexi_p (int bgexid);
+extern int bgexi_fast_p (void);
+extern int bgexi_get_dynamic_color_flag (int bgexid);
+extern int bgexi_get_enable_bgexid (struct window *window);
+extern int bgexi_special_trigger_p (void);
+extern int bgexi_clear_special_trigger_p (void);
+extern int bgexi_fill_rectangle (GC gc, struct window *window,
+                                 int x, int y, int w, int h, int *rgba);
+
 static XCharStruct *xfont_get_pcm (XFontStruct *, unsigned char2b);
 
 /* Get metrics of character CHAR2B in XFONT.  Value is null if CHAR2B
@@ -986,6 +995,176 @@ xfont_text_extents (struct font *font, const unsigned int *code,
   metrics->width = width;
 }
 
+static void
+xfont_draw_bgex_string (char *str, XFontStruct *xfont, int len, GC gc, struct glyph_string *s, int from, int x, int y, bool with_background)
+{
+  Display *display = FRAME_X_DISPLAY (s->f);
+  XGCValues xgcv;
+  int height = xfont->ascent + xfont->descent;
+  int draw_string_p = 0;
+  int draw_image_string_p = 0;
+  XGetGCValues (display, s->gc, GCBackground, &xgcv);
+  if (bgexi_fast_p () && (bgexi_get_enable_bgexid (s->w) == 0))
+    {
+      if (bgexi_get_dynamic_color_flag (0))
+        {
+          if (FRAME_BACKGROUND_PIXEL (s->f) == xgcv.background)
+            {
+              bgexi_fill_rectangle (s->gc, s->w, x, s->y, s->width, s->height, 0);
+              draw_string_p = !0;
+            }
+          else
+            {
+              int rgba[4];
+              XColor xcolor;
+              xcolor.pixel = xgcv.background;
+              XQueryColor (display, FRAME_X_COLORMAP (s->f), &xcolor);
+              rgba[0] = xcolor.red;
+              rgba[1] = xcolor.green;
+              rgba[2] = xcolor.blue;
+              rgba[3] = 0;
+              if ((xgcv.background == 0) ||
+                  bgexi_fill_rectangle (s->gc, s->w,
+                                        x, s->y, s->width, height, rgba))
+                {
+                  draw_image_string_p = !0;
+                }
+              else
+                {
+                  draw_string_p = !0;
+                }
+            }
+        }
+      else
+        {
+          if (FRAME_BACKGROUND_PIXEL (s->f) == xgcv.background)
+            {
+              bgexi_fill_rectangle (s->gc, s->w, x, s->y, s->width, s->height, 0);
+              draw_string_p = !0;
+            }
+          else
+            {
+              draw_image_string_p = !0;
+            }
+        }
+    }
+  else
+    {
+      if (FRAME_BACKGROUND_PIXEL (s->f) == xgcv.background)
+        {
+          if (bgexi_fill_rectangle (s->gc, s->w,
+                                    x, s->y, s->width, height, 0))
+            {
+              draw_image_string_p = !0;
+            }
+          else
+            {
+              draw_string_p = !0;
+            }
+        }
+      else
+        {
+          int rgba[4];
+          XColor xcolor;
+          xcolor.pixel = xgcv.background;
+          XQueryColor (display, FRAME_X_COLORMAP (s->f), &xcolor);
+          rgba[0] = xcolor.red;
+          rgba[1] = xcolor.green;
+          rgba[2] = xcolor.blue;
+          rgba[3] = 0;
+          if (bgexi_fill_rectangle (s->gc, s->w,
+                                    x, s->y, s->width, height, rgba))
+            {
+              draw_image_string_p = !0;
+            }
+          else
+            {
+              draw_string_p = !0;
+            }
+        }
+    }
+  if (str)
+    {
+      int i;
+
+      if (draw_string_p)
+        {
+          if (s->padding_p)
+            for (i = 0; i < len; i++)
+              XDrawString (display, FRAME_X_DRAWABLE (s->f),
+                           gc, x + i, y, str + i, 1);
+          else
+            XDrawString (display, FRAME_X_DRAWABLE (s->f),
+                         gc, x, y, str, len);
+        }
+      else if (draw_image_string_p)
+        {
+          if (s->padding_p)
+            for (i = 0; i < len; i++)
+              XDrawImageString (display, FRAME_X_DRAWABLE (s->f),
+                                gc, x + i, y, str + i, 1);
+          else
+            XDrawImageString (display, FRAME_X_DRAWABLE (s->f),
+                              gc, x, y, str, len);
+        }
+    }
+  else
+    {
+      int i;
+
+      if (draw_string_p)
+        {
+          if (s->padding_p)
+            for (i = 0; i < len; i++)
+              {
+                const unsigned code = s->char2b[from + i];
+                const XChar2b char2b = { .byte1 = code >> 8,
+                  .byte2 = code & 0xFF };
+                XDrawString16 (display, FRAME_X_DRAWABLE (s->f),
+                               gc, x + i, y, &char2b, 1);
+              }
+          else
+            {
+              USE_SAFE_ALLOCA;
+              const unsigned *code = s->char2b + from;
+              XChar2b *char2b;
+              SAFE_NALLOCA (char2b, 1, len);
+              for (int i = 0; i < len; ++i)
+                char2b[i] = (XChar2b) { .byte1 = code[i] >> 8,
+                  .byte2 = code[i] & 0xFF };
+              XDrawString16 (display, FRAME_X_DRAWABLE (s->f),
+                             gc, x, y, char2b, len);
+              SAFE_FREE ();
+            }
+        }
+      else if (draw_image_string_p)
+        {
+          if (s->padding_p)
+            for (i = 0; i < len; i++)
+              {
+                const unsigned code = s->char2b[from + i];
+                const XChar2b char2b = { .byte1 = code >> 8,
+                  .byte2 = code & 0xFF };
+                XDrawImageString16 (display, FRAME_X_DRAWABLE (s->f),
+                                    gc, x + i, y, &char2b, 1);
+              }
+          else
+            {
+              USE_SAFE_ALLOCA;
+              const unsigned *code = s->char2b + from;
+              XChar2b *char2b;
+              SAFE_NALLOCA (char2b, 1, len);
+              for (int i = 0; i < len; ++i)
+                char2b[i] = (XChar2b) { .byte1 = code[i] >> 8,
+                  .byte2 = code[i] & 0xFF };
+              XDrawImageString16 (display, FRAME_X_DRAWABLE (s->f),
+                                  gc, x, y, char2b, len);
+              SAFE_FREE ();
+            }
+        }
+    }
+}
+
 static int
 xfont_draw (struct glyph_string *s, int from, int to, int x, int y,
             bool with_background)
@@ -1010,80 +1189,94 @@ xfont_draw (struct glyph_string *s, int from, int to, int x, int y,
       for (i = 0; i < len ; i++)
 	str[i] = s->char2b[from + i] & 0xFF;
       block_input ();
-      if (with_background)
-	{
-	  if (s->padding_p)
-	    for (i = 0; i < len; i++)
-              XDrawImageString (display, FRAME_X_DRAWABLE (s->f),
-				gc, x + i, y, str + i, 1);
-	  else
-            XDrawImageString (display, FRAME_X_DRAWABLE (s->f),
-			      gc, x, y, str, len);
-	}
+      if (bgexi_p (-1))
+        {
+          xfont_draw_bgex_string(str, xfont, len, gc, s, from, x, y, with_background);
+        }
       else
-	{
-	  if (s->padding_p)
-	    for (i = 0; i < len; i++)
-              XDrawString (display, FRAME_X_DRAWABLE (s->f),
-			   gc, x + i, y, str + i, 1);
-	  else
-            XDrawString (display, FRAME_X_DRAWABLE (s->f),
-			 gc, x, y, str, len);
-	}
+        {
+          if (with_background)
+            {
+              if (s->padding_p)
+                for (i = 0; i < len; i++)
+                  XDrawImageString (display, FRAME_X_DRAWABLE (s->f),
+                                    gc, x + i, y, str + i, 1);
+              else
+                XDrawImageString (display, FRAME_X_DRAWABLE (s->f),
+                                  gc, x, y, str, len);
+            }
+          else
+            {
+              if (s->padding_p)
+                for (i = 0; i < len; i++)
+                  XDrawString (display, FRAME_X_DRAWABLE (s->f),
+                               gc, x + i, y, str + i, 1);
+              else
+                XDrawString (display, FRAME_X_DRAWABLE (s->f),
+                             gc, x, y, str, len);
+            }
+        }
       unblock_input ();
       SAFE_FREE ();
       return s->nchars;
     }
 
   block_input ();
-  if (with_background)
+  if (bgexi_p (-1))
     {
-      if (s->padding_p)
-	for (i = 0; i < len; i++)
-          {
-            const unsigned code = s->char2b[from + i];
-            const XChar2b char2b = { .byte1 = code >> 8,
-                                     .byte2 = code & 0xFF };
-            XDrawImageString16 (display, FRAME_X_DRAWABLE (s->f),
-                                gc, x + i, y, &char2b, 1);
-          }
-      else
-        {
-          USE_SAFE_ALLOCA;
-          const unsigned *code = s->char2b + from;
-          XChar2b *char2b;
-          SAFE_NALLOCA (char2b, 1, len);
-          for (int i = 0; i < len; ++i)
-            char2b[i] = (XChar2b) { .byte1 = code[i] >> 8,
-                                    .byte2 = code[i] & 0xFF };
-          XDrawImageString16 (display, FRAME_X_DRAWABLE (s->f),
-                              gc, x, y, char2b, len);
-          SAFE_FREE ();
-        }
+      xfont_draw_bgex_string(0, xfont, len, gc, s, from, x, y, with_background);
     }
   else
     {
-      if (s->padding_p)
-	for (i = 0; i < len; i++)
-          {
-            const unsigned code = s->char2b[from + i];
-            const XChar2b char2b = { .byte1 = code >> 8,
-                                     .byte2 = code & 0xFF };
-            XDrawString16 (display, FRAME_X_DRAWABLE (s->f),
-                           gc, x + i, y, &char2b, 1);
-          }
+      if (with_background)
+        {
+          if (s->padding_p)
+            for (i = 0; i < len; i++)
+              {
+                const unsigned code = s->char2b[from + i];
+                const XChar2b char2b = { .byte1 = code >> 8,
+                  .byte2 = code & 0xFF };
+                XDrawImageString16 (display, FRAME_X_DRAWABLE (s->f),
+                                    gc, x + i, y, &char2b, 1);
+              }
+          else
+            {
+              USE_SAFE_ALLOCA;
+              const unsigned *code = s->char2b + from;
+              XChar2b *char2b;
+              SAFE_NALLOCA (char2b, 1, len);
+              for (int i = 0; i < len; ++i)
+                char2b[i] = (XChar2b) { .byte1 = code[i] >> 8,
+                  .byte2 = code[i] & 0xFF };
+              XDrawImageString16 (display, FRAME_X_DRAWABLE (s->f),
+                                  gc, x, y, char2b, len);
+              SAFE_FREE ();
+            }
+        }
       else
         {
-          USE_SAFE_ALLOCA;
-          const unsigned *code = s->char2b + from;
-          XChar2b *char2b;
-          SAFE_NALLOCA (char2b, 1, len);
-          for (int i = 0; i < len; ++i)
-            char2b[i] = (XChar2b) { .byte1 = code[i] >> 8,
-                                    .byte2 = code[i] & 0xFF };
-          XDrawString16 (display, FRAME_X_DRAWABLE (s->f),
-                         gc, x, y, char2b, len);
-          SAFE_FREE ();
+          if (s->padding_p)
+            for (i = 0; i < len; i++)
+              {
+                const unsigned code = s->char2b[from + i];
+                const XChar2b char2b = { .byte1 = code >> 8,
+                  .byte2 = code & 0xFF };
+                XDrawString16 (display, FRAME_X_DRAWABLE (s->f),
+                               gc, x + i, y, &char2b, 1);
+              }
+          else
+            {
+              USE_SAFE_ALLOCA;
+              const unsigned *code = s->char2b + from;
+              XChar2b *char2b;
+              SAFE_NALLOCA (char2b, 1, len);
+              for (int i = 0; i < len; ++i)
+                char2b[i] = (XChar2b) { .byte1 = code[i] >> 8,
+                  .byte2 = code[i] & 0xFF };
+              XDrawString16 (display, FRAME_X_DRAWABLE (s->f),
+                             gc, x, y, char2b, len);
+              SAFE_FREE ();
+            }
         }
     }
   unblock_input ();
