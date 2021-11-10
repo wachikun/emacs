@@ -2955,6 +2955,13 @@ hscrolling_current_line_p (struct window *w)
 		 Qcurrent_line));
 }
 
+
+extern bool expose_window (struct window *w, const Emacs_Rectangle *fr);
+extern int bgexi_p (int bgexid);
+extern int bgexi_fast_p (void);
+extern int bgexi_fill_rectangle (GC gc, struct window *window,
+                                 int x, int y, int w, int h, int *rgba);
+
 /***********************************************************************
 			Lisp form evaluation
  ***********************************************************************/
@@ -18552,6 +18559,18 @@ redisplay_window (Lisp_Object window, bool just_this_one_p)
   if (mode_line_update_needed (w))
     update_mode_line = true;
 
+  if (!just_this_one_p)
+    {
+      if (bgexi_p (-1) && w->bgexi_redisplay_p)
+        {
+          block_input ();
+          w->bgexi_redisplay_p = 0;
+          do_pending_window_change(1);
+          clear_current_matrices (f);
+          unblock_input ();
+        }
+    }
+
   /* Point refers normally to the selected window.  For any other
      window, set up appropriate value.  */
   if (!EQ (window, selected_window))
@@ -31455,7 +31474,7 @@ gui_clear_end_of_line (struct window *w, struct glyph_row *updated_row,
   if (to_x > from_x && to_y > from_y)
     {
       block_input ();
-      FRAME_RIF (f)->clear_frame_area (f, from_x, from_y,
+      FRAME_RIF (f)->clear_frame_area (w, f, from_x, from_y,
                                        to_x - from_x, to_y - from_y);
       unblock_input ();
     }
@@ -31995,7 +32014,7 @@ erase_phys_cursor (struct window *w)
       x = WINDOW_TEXT_TO_FRAME_PIXEL_X (w, x);
 
       if (width > 0)
-	FRAME_RIF (f)->clear_frame_area (f, x, y, width, cursor_row->visible_height);
+	FRAME_RIF (f)->clear_frame_area (w, f, x, y, width, cursor_row->visible_height);
     }
 
   /* Erase the cursor by redrawing the character underneath it.  */
@@ -34631,7 +34650,7 @@ gui_draw_bottom_divider (struct window *w)
    input blocked.  Value is true if the exposure overwrites
    mouse-face.  */
 
-static bool
+bool
 expose_window (struct window *w, const Emacs_Rectangle *fr)
 {
   struct frame *f = XFRAME (w->frame);
@@ -34668,6 +34687,14 @@ expose_window (struct window *w, const Emacs_Rectangle *fr)
 
       redisplay_trace ("expose_window (%d, %d, %u, %u)\n",
 		       r.x, r.y, r.width, r.height);
+
+      if (bgexi_p (-1))
+        {
+          Display *dpy = FRAME_X_DISPLAY (f);
+          GC gc = XCreateGC (dpy, FRAME_X_DRAWABLE (f), 0, 0);
+          bgexi_fill_rectangle (gc, w, r.x, r.y, r.width, r.height, 0);
+          XFreeGC (dpy, gc);
+        }
 
       /* Convert to window coordinates.  */
       r.x -= WINDOW_LEFT_EDGE_X (w);

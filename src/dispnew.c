@@ -233,6 +233,7 @@ DEFUN ("dump-redisplay-history", Fdump_redisplay_history,
 
 #endif /* GLYPH_DEBUG */
 
+extern int bgexi_p (int bgexid);
 
 #if defined PROFILING && !HAVE___EXECUTABLE_START
 /* This function comes first in the Emacs executable and is used only
@@ -4456,6 +4457,8 @@ scrolling_window (struct window *w, int tab_line_p)
   if (w32_use_visible_system_caret)
     return 0;
 #endif
+  if (bgexi_p (-1))
+    return 0;
 
   /* Give up if some rows in the desired matrix are not enabled.  */
   if (! MATRIX_ROW_ENABLED_P (desired_matrix, i))

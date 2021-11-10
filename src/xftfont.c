@@ -122,6 +122,15 @@ xftfont_match (struct frame *f, Lisp_Object spec)
   return ftfont_match2 (f, spec, Qxft);
 }
 
+extern int bgexi_p (int bgexid);
+extern int bgexi_fast_p (void);
+extern int bgexi_get_dynamic_color_flag (int bgexid);
+extern int bgexi_get_enable_bgexid (struct window *window);
+extern int bgexi_clear_special_trigger_p (void);
+extern int bgexi_fill_rectangle (GC gc, struct window *window,
+                                 int x, int y, int w, int h, int *rgba);
+extern int bgexi_overstrike_p (void);
+
 static FcChar8 ascii_printable[95];
 
 static Lisp_Object
@@ -459,6 +468,7 @@ xftfont_draw (struct glyph_string *s, int from, int to, int x, int y,
   block_input ();
 
   struct frame *f = s->f;
+  Display *display = FRAME_X_DISPLAY (f);
   struct face *face = s->face;
   struct font_info *xftfont_info = (struct font_info *) s->font;
   struct xftface_info *xftface_info = NULL;
@@ -467,6 +477,22 @@ xftfont_draw (struct glyph_string *s, int from, int to, int x, int y,
   XftColor fg, bg;
   int len = to - from;
   int i;
+  int height = FONT_HEIGHT (s->font), ascent = FONT_BASE (s->font);
+  /* Font's global height and ascent values might be
+     preposterously large for some fonts.  We fix here the case
+     when those fonts are used for display of glyphless
+     characters, because drawing background with font dimensions
+     in those cases makes the display illegible.  There's only one
+     more call to the draw method with with_background set to
+     true, and that's in x_draw_glyph_string_foreground, when
+     drawing the cursor, where we have no such heuristics
+     available.  FIXME.  */
+  if (s->first_glyph->type == GLYPHLESS_GLYPH
+      && (s->first_glyph->u.glyphless.method == GLYPHLESS_DISPLAY_HEX_CODE
+          || s->first_glyph->u.glyphless.method == GLYPHLESS_DISPLAY_ACRONYM))
+    height = ascent =
+      s->first_glyph->slice.glyphless.lower_yoff
+      - s->first_glyph->slice.glyphless.upper_yoff;
 
   if (s->font == face->font)
     xftface_info = (struct xftface_info *) face->extra;
@@ -477,26 +503,84 @@ xftfont_draw (struct glyph_string *s, int from, int to, int x, int y,
   else
     XftDrawSetClip (xft_draw, NULL);
 
-  if (with_background)
+  if (bgexi_p (-1) &&
+      !bgexi_overstrike_p())
     {
-      int height = FONT_HEIGHT (s->font), ascent = FONT_BASE (s->font);
-
-      /* Font's global height and ascent values might be
-	 preposterously large for some fonts.  We fix here the case
-	 when those fonts are used for display of glyphless
-	 characters, because drawing background with font dimensions
-	 in those cases makes the display illegible.  There's only one
-	 more call to the draw method with with_background set to
-	 true, and that's in x_draw_glyph_string_foreground, when
-	 drawing the cursor, where we have no such heuristics
-	 available.  FIXME.  */
-      if (s->first_glyph->type == GLYPHLESS_GLYPH
-	  && (s->first_glyph->u.glyphless.method == GLYPHLESS_DISPLAY_HEX_CODE
-	      || s->first_glyph->u.glyphless.method == GLYPHLESS_DISPLAY_ACRONYM))
-	height = ascent =
-	  s->first_glyph->slice.glyphless.lower_yoff
-	  - s->first_glyph->slice.glyphless.upper_yoff;
-      XftDrawRect (xft_draw, &bg, x, y - ascent, s->width, height);
+      XGCValues xgcv;
+      int draw_rect_p = 0;
+      int fill_rect_p = 0;
+      XGetGCValues (display, s->gc, GCBackground, &xgcv);
+      if (bgexi_fast_p () && (bgexi_get_enable_bgexid (s->w) == 0))
+        {
+          if (bgexi_get_dynamic_color_flag (0))
+            {
+              if (FRAME_BACKGROUND_PIXEL (s->f) == xgcv.background)
+                {
+                  bgexi_fill_rectangle (s->gc, s->w, x, y - ascent, s->width, height, 0);
+                }
+              else
+                {
+                  fill_rect_p = !0;
+                }
+            }
+          else
+            {
+              if (FRAME_BACKGROUND_PIXEL (s->f) == xgcv.background)
+                {
+                  bgexi_fill_rectangle (s->gc, s->w, x, y - ascent, s->width, height, 0);
+                }
+              else
+                {
+                  fill_rect_p = !0;
+                }
+            }
+        }
+      else
+        {
+          if (FRAME_BACKGROUND_PIXEL (s->f) == xgcv.background)
+            {
+              if (bgexi_fill_rectangle (s->gc, s->w, x, y - ascent, s->width, height, 0))
+                {
+                  draw_rect_p = !0;
+                }
+              else
+                {
+                }
+            }
+          else
+            {
+              fill_rect_p = !0;
+            }
+        }
+      if (fill_rect_p)
+        {
+          int rgba[4];
+          XColor xcolor;
+          xcolor.pixel = xgcv.background;
+          XQueryColor (display, FRAME_X_COLORMAP (s->f), &xcolor);
+          rgba[0] = xcolor.red;
+          rgba[1] = xcolor.green;
+          rgba[2] = xcolor.blue;
+          rgba[3] = 0;
+          if (s->face->box_horizontal_line_width == 0)
+            {
+              if ((xgcv.background == 0) ||
+                  bgexi_fill_rectangle (s->gc, s->w, x, y - ascent, s->width, height, rgba))
+                {
+                  draw_rect_p = !0;
+                }
+              else
+                {
+                }
+            }
+        }
+      if (draw_rect_p && with_background)
+        XftDrawRect (xft_draw, &bg, x, y - ascent, s->width, height);
+    }
+  else
+    {
+      if (with_background)
+        XftDrawRect (xft_draw, &bg, x, y - ascent, s->width, height);
     }
   code = alloca (sizeof (FT_UInt) * len);
   for (i = 0; i < len; i++)

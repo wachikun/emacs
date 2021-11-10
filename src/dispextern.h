@@ -2958,7 +2958,7 @@ struct redisplay_interface
   void (*define_frame_cursor) (struct frame *f, Emacs_Cursor cursor);
 
   /* Clear the area at (X,Y,WIDTH,HEIGHT) of frame F.  */
-  void (*clear_frame_area) (struct frame *f, int x, int y,
+  void (*clear_frame_area) (struct window *w, struct frame *f, int x, int y,
                             int width, int height);
 
  /* Clear area of frame F's internal border.  If the internal border
