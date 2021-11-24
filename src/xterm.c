@@ -10077,7 +10077,12 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 
 	    x_display_set_last_user_time (dpyinfo, xi_event->time);
 	    x_detect_focus_change (dpyinfo, any, event, &inev.ie);
-	    xi_reset_scroll_valuators_for_device_id (dpyinfo, enter->deviceid);
+
+	    if (enter->detail != XINotifyInferior
+		&& enter->mode != XINotifyPassiveUngrab
+		&& enter->mode != XINotifyUngrab && any)
+	      xi_reset_scroll_valuators_for_device_id (dpyinfo, enter->deviceid);
+
 	    f = any;
 
 	    if (f && x_mouse_click_focus_ignore_position)
@@ -10102,7 +10107,6 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 
 	    x_display_set_last_user_time (dpyinfo, xi_event->time);
 	    x_detect_focus_change (dpyinfo, any, event, &inev.ie);
-	    xi_reset_scroll_valuators_for_device_id (dpyinfo, leave->deviceid);
 
 	    f = x_top_window_to_frame (dpyinfo, leave->event);
 	    if (f)
@@ -10352,10 +10356,7 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 	      bv.x = lrint (xev->event_x);
 	      bv.y = lrint (xev->event_y);
 	      bv.window = xev->event;
-	      bv.state = xev->mods.base
-		| xev->mods.effective
-		| xev->mods.latched
-		| xev->mods.locked;
+	      bv.state = xev->mods.effective;
 	      bv.time = xev->time;
 
 	      memset (&compose_status, 0, sizeof (compose_status));
@@ -10513,9 +10514,7 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 	      char copy_buffer[81];
 	      char *copy_bufptr = copy_buffer;
 	      unsigned char *copy_ubufptr;
-#ifdef HAVE_XKB
 	      int copy_bufsiz = sizeof (copy_buffer);
-#endif
 	      ptrdiff_t i;
 	      int nchars, len;
 

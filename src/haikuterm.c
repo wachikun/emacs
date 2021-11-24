@@ -218,11 +218,11 @@ haiku_clear_frame (struct frame *f)
   block_input ();
   BView_draw_lock (view);
   BView_StartClip (view);
-  BView_ClipToRect (view, 0, 0, FRAME_PIXEL_WIDTH (f),
-		    FRAME_PIXEL_HEIGHT (f));
+  BView_ClipToRect (view, 0, 0, FRAME_PIXEL_WIDTH (f) + 1,
+		    FRAME_PIXEL_HEIGHT (f) + 1);
   BView_SetHighColor (view, FRAME_BACKGROUND_PIXEL (f));
-  BView_FillRectangle (view, 0, 0, FRAME_PIXEL_WIDTH (f),
-		       FRAME_PIXEL_HEIGHT (f));
+  BView_FillRectangle (view, 0, 0, FRAME_PIXEL_WIDTH (f) + 1,
+		       FRAME_PIXEL_HEIGHT (f) + 1);
   BView_EndClip (view);
   BView_draw_unlock (view);
   unblock_input ();
@@ -2626,8 +2626,8 @@ haiku_read_socket (struct terminal *terminal, struct input_event *hold_quit)
 	    if (!f)
 	      continue;
 
-	    int width = (int) b->px_widthf;
-	    int height = (int) b->px_heightf;
+	    int width = lrint (b->px_widthf);
+	    int height = lrint (b->px_heightf);
 
 	    BView_draw_lock (FRAME_HAIKU_VIEW (f));
 	    BView_resize_to (FRAME_HAIKU_VIEW (f), width, height);
@@ -2843,8 +2843,11 @@ haiku_read_socket (struct terminal *terminal, struct input_event *hold_quit)
 		tool_bar_p = EQ (window, f->tool_bar_window);
 
 		if (tool_bar_p)
-		  handle_tool_bar_click
-		    (f, x, y, type == BUTTON_DOWN, inev.modifiers);
+		  {
+		    handle_tool_bar_click
+		      (f, x, y, type == BUTTON_DOWN, inev.modifiers);
+		    redisplay ();
+		  }
 	      }
 
 	    if (type == BUTTON_UP)
@@ -3617,9 +3620,6 @@ Setting it to any other value is equivalent to `shift'.  */);
   staticpro (&rdb);
 
   Fprovide (Qhaiku, Qnil);
-#ifdef HAVE_BE_FREETYPE
-  Fprovide (Qfreetype, Qnil);
-#endif
 #ifdef USE_BE_CAIRO
   Fprovide (intern_c_string ("cairo"), Qnil);
 #endif
